@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Motif · JewelGen AI{% endblock %}
+{% block meta %}<meta name="description" content="Upload a motif image to extract a description and generate a prompt for jewelry design." />{% endblock %}
+{% block content %}
+<section class="app-section" aria-labelledby="motif-heading">
+  <h1 id="motif-heading">🖼️ Upload Motif Image</h1>
+
+<input type="file" id="motifUpload" accept="image/*" aria-label="Motif image" />
+  <div class="row gap">
+  <button
+    type="button"
+    class="btn primary"
+    id="generateMotif"
+    data-url="{{ url_for('generate_prompts') }}"
+  >
+    Generate Description &amp; Prompt
+  </button>
+    <div>
+      <label for="motifUseCase">Use For</label>
+      <select id="motifUseCase">
+        <option value="">-- Select --</option>
+        <option value="Pendant">Pendant</option>
+        <option value="Earring">Earring</option>
+        <option value="Ring">Ring</option>
+        <option value="Bracelet">Bracelet</option>
+        <option value="Necklace">Necklace</option>
+        <option value="Tanmaniya">Tanmaniya</option>
+      </select>
+    </div>
+  </div>
+
+  <h3>📄 Extracted Description</h3>
+  <textarea id="extractedDescription" rows="4" placeholder="Description will appear here..." readonly></textarea>
+
+  <h3>🪄 Generated Prompt</h3>
+  <textarea id="generatedMotifPrompt" rows="6" placeholder="Prompt will appear here..." readonly></textarea>
+
+  <button class="btn primary" id="useMotifPromptBtn" data-index-url="{{ url_for('index') }}">Use This Prompt</button>
+
+  <h3 class="mt-20">Motif Preview 📸</h3>
+  <div class="preview-frame">
+  <img id="motifPreviewImage" src="" alt="Motif preview" />
+</div>
+</section>
+{% endblock %}

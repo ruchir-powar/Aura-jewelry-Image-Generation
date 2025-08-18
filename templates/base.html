@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>{% block title %}JewelGen AI{% endblock %}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  {% block meta %}<meta name="description" content="Aura JewelGen AI — generate, explore, and design jewelry concepts." />{% endblock %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+  <link rel="icon" href="data:;base64,=" />
+  <meta name="api-generate" content="{{ url_for('generate') }}">
+  <meta name="api-generate-prompts" content="{{ url_for('generate_prompts') }}">
+
+</head>
+<body data-page="{{ request.endpoint|default('index') }}">
+  <!-- ── Top Navigation Bar ── -->
+  <header class="top-nav" role="banner">
+    <div class="brand">Aura JewelGen&nbsp;AI</div>
+    <nav aria-label="Primary" class="main-nav">
+      <a href="{{ url_for('index') }}" data-route="index" class="{% if request.endpoint=='index' %}active{% endif %}">Generate</a>
+      <a href="{{ url_for('gallery') }}" data-route="gallery" class="{% if request.endpoint=='gallery' %}active{% endif %}">Gallery</a>
+      <a href="{{ url_for('inspiration') }}" data-route="inspiration" class="{% if request.endpoint=='inspiration' %}active{% endif %}">Sketch-Img</a>
+      <a href="{{ url_for('motif') }}" data-route="motif" class="{% if request.endpoint=='motif' %}active{% endif %}">Motif</a>
+      <a href="{{ url_for('about') }}" data-route="about" class="{% if request.endpoint=='about' %}active{% endif %}">About</a>
+    </nav>
+  </header>
+
+  <div class="layout">
+    <main id="content" class="content" role="main" tabindex="-1">
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+
+  <script defer src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>

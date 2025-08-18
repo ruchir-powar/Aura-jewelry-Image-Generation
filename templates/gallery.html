@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Gallery · JewelGen AI{% endblock %}
+{% block meta %}<meta name="description" content="Browse previously generated jewelry concepts in the gallery." />{% endblock %}
+{% block content %}
+<section class="app-section" aria-labelledby="gallery-heading">
+  <h1 id="gallery-heading">Gallery</h1>
+  <div id="galleryItems" class="gallery-grid-only" role="list"></div>
+
+  <div id="lightbox" class="lightbox hidden" aria-modal="true" role="dialog" aria-labelledby="lightboxPrompt">
+    <button id="closeLightboxBtn" class="lightbox-close" aria-label="Close">×</button>
+    <img id="lightboxImage" alt="Expanded gallery preview" />
+    <p id="lightboxPrompt"></p>
+  </div>
+</section>
+{% endblock %}

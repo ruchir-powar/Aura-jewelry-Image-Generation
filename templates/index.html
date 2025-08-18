@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+{% block title %}Home · JewelGen AI{% endblock %}
+{% block meta %}
+<meta name="description" content="Generate jewelry prompts and previews with Aura JewelGen AI." />
+{% endblock %}
+{% block content %}
+<script>
+  document.addEventListener("DOMContentLoaded", () => { document.body.dataset.page = "index"; });
+</script>
+
+<section aria-labelledby="generate-heading" class="app-section">
+  <h1 id="generate-heading" class="sr-only">Generate</h1>
+
+  <!-- ONE unified rounded container -->
+  <div class="form-section">
+
+    <!-- Row 1 -->
+    <div class="dropdown-grid">
+      <div class="dropdown-group">
+        <label for="jewelryType">Jewelry Type</label>
+        <select id="jewelryType"><option value="">-- Select --</option></select>
+      </div>
+      <div class="dropdown-group">
+        <label for="jewelrySubCategory">Jewelry Sub Category</label>
+        <select id="jewelrySubCategory"><option value="">-- Select --</option></select>
+      </div>
+      <div class="dropdown-group">
+        <label for="metalType">Metal Type</label>
+        <select id="metalType"><option value="">-- Select --</option></select>
+      </div>
+    </div>
+
+    <!-- Row 2 -->
+    <div class="dropdown-grid">
+      <div class="dropdown-group">
+        <label for="jewelryStyle">Jewelry Style</label>
+        <select id="jewelryStyle"><option value="">-- Select --</option></select>
+      </div>
+      <div class="dropdown-group">
+        <label for="gemstoneType">Gemstone Type</label>
+        <select id="gemstoneType"><option value="">-- Select --</option></select>
+      </div>
+      <div class="dropdown-group">
+        <label for="diamondShape">Diamond Shape</label>
+        <select id="diamondShape"><option value="">-- Select --</option></select>
+      </div>
+    </div>
+
+    <!-- Row 3 -->
+    <div class="dropdown-grid">
+      <div class="dropdown-group">
+        <label for="settingStyle">Setting Style</label>
+        <select id="settingStyle"><option value="">-- Select --</option></select>
+      </div>
+      <div class="dropdown-group">
+        <label for="stoneArrangement">Stone Arrangement</label>
+        <select id="stoneArrangement"><option value="">-- Select --</option></select>
+      </div>
+      <div class="dropdown-group">
+        <label for="caratWeight">Carat Weight</label>
+        <select id="caratWeight"><option value="">-- Select --</option></select>
+      </div>
+    </div>
+
+    <!-- Row 4 -->
+    <div class="dropdown-grid">
+      <div class="dropdown-group">
+        <label for="sizeRange">Size Range</label>
+        <select id="sizeRange"><option value="">-- Select --</option></select>
+      </div>
+      <div class="dropdown-group">
+        <label for="numDiamonds">Number of Diamonds</label>
+        <select id="numDiamonds">
+          <option value="">-- Select --</option>
+          <option value="1">1</option><option value="2">2</option><option value="3">3</option>
+          <option value="4">4</option><option value="5">5</option><option value="6">6</option>
+          <option value="7">7</option><option value="8">8</option><option value="9">9</option>
+          <option value="10">10</option>
+        </select>
+      </div>
+      <div class="dropdown-group">
+        <label for="goldWeight">Gold Weight</label>
+        <select id="goldWeight"><option value="">-- Select --</option></select>
+      </div>
+    </div>
+
+    <!-- Actions: Generate Prompt -->
+    <div class="actions" style="margin-top:16px;">
+      <button id="generateBtn" type="button">Generate Prompt</button>
+    </div>
+
+    <!-- Prompt box -->
+    <label class="sr-only" for="promptBox">Prompt</label>
+    <textarea id="promptBox" placeholder="Your prompt will appear here..." aria-label="Prompt"></textarea>
+
+    <!-- Images to generate + Generate button -->
+    <div class="file-row" style="display:flex; gap:16px; align-items:flex-end;">
+      <div class="dropdown-group" style="flex:0 0 220px;">
+        <label for="imageCount">Images to Generate</label>
+        <select id="imageCount">
+          <option value="1">1</option>
+          <option value="2">2</option>
+          <option value="3">3</option>
+          <option value="4">4</option>
+        </select>
+      </div>
+      <button id="generateJewelryBtn" type="button">Generate Jewelry</button>
+    </div>
+
+    <!-- Preview (inside same container) -->
+    <h2 class="preview-title" style="text-align:center; margin: 30px auto 10px;">Preview 📸</h2>
+    <div id="previewContainer" class="preview-container">
+      <!-- Start with 1 preview frame -->
+      <div class="preview-frame" id="previewFrame-0">
+        <img id="previewImage-0" src="" alt="Generated jewelry preview" />
+      </div>
+    </div>
+
+    <!-- Final Prompt + actions -->
+    <div id="resultSection" class="mt-20">
+      <label class="sr-only" for="finalPrompt">Final Prompt</label>
+      <textarea id="finalPrompt" readonly placeholder="Your generated prompt will appear here…"></textarea>
+
+      <div class="button-row" style="display:flex; gap:10px; flex-wrap:wrap;">
+
+        <!-- Download: default first image; change to “all” via JS if you want -->
+        <div class="dropdown-group" style="display:flex; align-items:center; gap:8px;">
+          <label for="downloadWhich" style="margin:0;">Download</label>
+        </div>
+        <button id="downloadImageBtn" type="button">Download Image</button>
+      </div>
+    </div>
+
+  </div><!-- /form-section (single container) -->
+</section>
+{% endblock %}
