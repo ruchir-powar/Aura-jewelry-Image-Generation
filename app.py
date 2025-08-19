@@ -1,7 +1,7 @@
 # app.py
 from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
-import os, base64, traceback, json
+import os, base64, traceback, json, io
 from dotenv import load_dotenv
 from datetime import datetime
 
@@ -11,6 +11,12 @@ load_dotenv(dotenv_path)
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 print("API Key Loaded:", "✔️" if OPENAI_API_KEY else "❌")
+
+# Cloudinary creds from .env
+CLOUDINARY_CLOUD_NAME = os.getenv("CLOUDINARY_CLOUD_NAME", "")
+CLOUDINARY_API_KEY = os.getenv("CLOUDINARY_API_KEY", "")
+CLOUDINARY_API_SECRET = os.getenv("CLOUDINARY_API_SECRET", "")
+CLOUDINARY_FOLDER = os.getenv("CLOUDINARY_FOLDER", "aura/jewelgen")
 
 # ── OpenAI clients (prefer new SDK; fallback to legacy if present) ──────────
 _client = None
@@ -28,12 +34,21 @@ try:
 except Exception as e:
     print("⚠️ Legacy OpenAI SDK not available:", e)
 
+# ── Cloudinary SDK ──────────────────────────────────────────────────────────
+import cloudinary
+import cloudinary.uploader
+import cloudinary.search
+
+cloudinary.config(
+    cloud_name=CLOUDINARY_CLOUD_NAME or None,
+    api_key=CLOUDINARY_API_KEY or None,
+    api_secret=CLOUDINARY_API_SECRET or None,
+    secure=True,
+)
+
 # ── Flask ───────────────────────────────────────────────────────────────────
 app = Flask(__name__, static_folder="static", template_folder="templates")
 CORS(app)
-
-GEN_DIR = os.path.join(app.static_folder, "generated")
-os.makedirs(GEN_DIR, exist_ok=True)
 
 # Optional: cap uploads (10 MB) to avoid huge posts
 app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024
@@ -60,15 +75,6 @@ def about():
     return render_template("about.html")
 
 # ── Helpers ─────────────────────────────────────────────────────────────────
-def _save_b64_to_generated(b64_png: str, prefix: str = "image") -> str:
-    """Save base64-encoded PNG to /static/generated and return web path."""
-    ts = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-    filename = f"{prefix}_{ts}.png"
-    out_path = os.path.join(GEN_DIR, filename)
-    with open(out_path, "wb") as f:
-        f.write(base64.b64decode(b64_png))
-    return f"/static/generated/{filename}"
-
 def _tiny_png_b64() -> str:
     """1x1 transparent PNG as last-resort fallback (keeps UI stable)."""
     return (
@@ -76,98 +82,133 @@ def _tiny_png_b64() -> str:
         "AAC0lEQVR42mP8/wwAAwMB/ax0eQAAAABJRU5ErkJggg=="
     )
 
-# ── Text → Image ────────────────────────────────────────────────────────────
+def _err(message, status=400, detail=None):
+    return jsonify({"ok": False, "error": {"message": message, "detail": detail}}), status
+
+def _upload_png_b64_to_cloudinary(b64_png: str, *, folder=CLOUDINARY_FOLDER, prompt_ctx: str = "") -> dict:
+    """
+    Accepts PNG as base64 string (with or without data URI header), uploads to Cloudinary.
+    Returns Cloudinary upload response dict.
+    """
+    if not (CLOUDINARY_CLOUD_NAME and CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET):
+        raise RuntimeError("Cloudinary environment variables are not configured")
+
+    if b64_png.startswith("data:image"):
+        b64_png = b64_png.split(",", 1)[-1]
+
+    data = base64.b64decode(b64_png)
+    file_obj = io.BytesIO(data)
+
+    resp = cloudinary.uploader.upload(
+        file_obj,
+        folder=folder,
+        resource_type="image",
+        format="png",
+        tags=["jewelgen", "generated"],
+        context={"prompt": prompt_ctx} if prompt_ctx else {},
+        unique_filename=True,
+        overwrite=False,
+    )
+    return resp
+
+# ── Text → Image (uploads to Cloudinary) ────────────────────────────────────
 @app.route("/generate", methods=["POST"])
 def generate():
     try:
         data = request.get_json(force=True, silent=False) or {}
         prompt = (data.get("prompt") or "").strip()
+        model_pref = (data.get("model") or "auto").strip().lower()
+
         if not prompt:
-            return jsonify({"error": "Prompt is required"}), 400
+            return _err("Prompt is required.", 400)
         if len(prompt) > 2000:
-            return jsonify({"error": "Prompt too long"}), 400
+            return _err("Prompt too long.", 400)
 
         print("🎯 /generate prompt:", prompt)
-
         b64 = None
 
-        # Preferred: new SDK, gpt-image-1
+        # Preferred: new SDK
         if _client:
-            try:
-                resp = _client.images.generate(
-                    model="gpt-image-1",
-                    prompt=prompt,
-                    size="1024x1024",
-                    n=1,
-                    response_format="b64_json",
-                )
-                b64 = resp.data[0].b64_json
-            except Exception as e:
-                print("⚠️ newSDK gpt-image-1 failed:", e)
+            # Choose model if forced; else try gpt-image-1 → dall-e-3
+            preferred_models = []
+            if model_pref in ("gpt-image-1", "dall-e-3"):
+                preferred_models = [model_pref]
+            else:
+                preferred_models = ["gpt-image-1", "dall-e-3"]
 
-            # Optional fallback: DALL·E 3 if available
-            if b64 is None:
+            for m in preferred_models:
                 try:
                     resp = _client.images.generate(
-                        model="dall-e-3",
+                        model=m,
                         prompt=prompt,
                         size="1024x1024",
                         n=1,
                         response_format="b64_json",
                     )
                     b64 = resp.data[0].b64_json
+                    if b64:
+                        break
                 except Exception as e:
-                    print("⚠️ newSDK dall-e-3 failed:", e)
+                    print(f"⚠️ newSDK {m} failed:", e)
 
-        # Legacy fallback (some older installs)
+        # Legacy fallback
         if b64 is None and _legacy:
-            try:
-                resp = _legacy.images.generate(
-                    model="gpt-image-1",
-                    prompt=prompt,
-                    size="1024x1024",
-                    n=1,
-                    response_format="b64_json",
-                )
-                b64 = resp.data[0].b64_json
-            except Exception as e:
-                print("⚠️ legacy gpt-image-1 failed:", e)
+            for m in ("gpt-image-1", "dall-e-3"):
                 try:
                     resp = _legacy.images.generate(
-                        model="dall-e-3",
+                        model=m,
                         prompt=prompt,
                         size="1024x1024",
                         n=1,
                         response_format="b64_json",
                     )
                     b64 = resp.data[0].b64_json
+                    if b64:
+                        break
                 except Exception as e2:
-                    print("⚠️ legacy dall-e-3 failed:", e2)
+                    print(f"⚠️ legacy {m} failed:", e2)
 
         # Last resort
         if b64 is None:
             b64 = _tiny_png_b64()
 
-        web_path = _save_b64_to_generated(b64, prefix="image")
-        return jsonify({"image": b64, "file_path": web_path})
+        # ⬆️ Upload to Cloudinary and return its URL
+        up = _upload_png_b64_to_cloudinary(b64, folder=CLOUDINARY_FOLDER, prompt_ctx=prompt)
+
+        return jsonify({
+            "ok": True,
+            # keep base64 for backward-compat previews if your JS uses it
+            "image": b64,
+            # make file_path compatible with your existing front-end: use Cloudinary URL
+            "file_path": up.get("secure_url"),
+            "cloudinary": {
+                "url": up.get("secure_url"),
+                "public_id": up.get("public_id"),
+                "bytes": up.get("bytes"),
+                "format": up.get("format"),
+                "width": up.get("width"),
+                "height": up.get("height"),
+                "created_at": up.get("created_at"),
+            }
+        })
 
     except Exception as e:
-        return jsonify({"error": str(e), "trace": traceback.format_exc()}), 500
+        return _err("Failed to generate image", 500, str(e))
 
 # ── Image (motif) → JSON {description, prompt} ──────────────────────────────
 @app.route("/generate_prompts", methods=["GET", "POST"])
 def generate_prompts():
     if request.method == "GET":
-        return jsonify({"error": "Use POST with multipart/form-data (image, use_case)."}), 405
+        return _err("Use POST with multipart/form-data (image, use_case).", 405)
 
     try:
         image_file = request.files.get("image")
         use_case = (request.form.get("use_case") or "").strip() or "Jewelry"
 
         if not image_file:
-            return jsonify({"error": "No image uploaded"}), 400
+            return _err("No image uploaded", 400)
         if _client is None:
-            return jsonify({"error": "OpenAI client not available. Update the openai package."}), 500
+            return _err("OpenAI client not available. Update the openai package.", 500)
 
         image_b64 = base64.b64encode(image_file.read()).decode("utf-8")
 
@@ -186,7 +227,6 @@ Return concise JSON with:
 Keywords: lightweight, wearable, elegant, subtle motif, realistic, refined, daily wear.
 """.strip()
 
-        # ✅ Corrected: exactly two closing braces before the comma on the image line
         resp = _client.chat.completions.create(
             model="gpt-4o",
             messages=[
@@ -195,7 +235,7 @@ Keywords: lightweight, wearable, elegant, subtle motif, realistic, refined, dail
                     "role": "user",
                     "content": [
                         {"type": "text", "text": "Analyze and return strict JSON {description, prompt}."},
-                        {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_b64}"}},
+                        {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_b64}"}} ,
                     ],
                 },
             ],
@@ -203,7 +243,6 @@ Keywords: lightweight, wearable, elegant, subtle motif, realistic, refined, dail
             max_tokens=500
         )
 
-        # Access content safely for both dict/object styles
         msg = resp.choices[0].message
         raw = (msg.content if hasattr(msg, "content") else (msg.get("content") if isinstance(msg, dict) else "")) or ""
         raw = raw.strip()
@@ -222,29 +261,29 @@ Keywords: lightweight, wearable, elegant, subtle motif, realistic, refined, dail
         try:
             parsed = json.loads(raw)
         except json.JSONDecodeError:
-            return jsonify({"error": "Failed to parse GPT response as JSON", "raw": raw}), 500
+            return _err("Failed to parse GPT response as JSON", 500, raw)
 
         desc = parsed.get("description") or parsed.get("nl_description") or ""
         pr = parsed.get("prompt") or parsed.get("cad_prompt") or ""
-        return jsonify({"description": desc, "prompt": pr})
+        return jsonify({"ok": True, "description": desc, "prompt": pr})
 
     except Exception as e:
-        return jsonify({"error": str(e), "trace": traceback.format_exc()}), 500
+        return _err("Error during motif analysis", 500, str(e))
 
-# ── Sketch → Realistic Image ────────────────────────────────────────────────
+# ── Sketch → Realistic Image (uploads to Cloudinary) ────────────────────────
 @app.route("/generate-sketch", methods=["POST"])
 def generate_sketch():
     try:
         sketch_file = request.files.get("sketch")
         if not sketch_file:
-            return jsonify({"error": "No sketch uploaded"}), 400
+            return _err("No sketch uploaded", 400)
 
         sketch_bytes = sketch_file.read()
         b64_input = base64.b64encode(sketch_bytes).decode("utf-8")
 
         b64 = None
         if _client:
-            # Some SDKs support image-to-image via data URL param; if not, we fall back
+            # Some SDKs may not support i2i; we keep this best-effort.
             try:
                 resp = _client.images.generate(
                     model="gpt-image-1",
@@ -265,11 +304,19 @@ def generate_sketch():
         if b64 is None:
             b64 = _tiny_png_b64()
 
-        web_path = _save_b64_to_generated(b64, prefix="sketch_realistic")
-        return jsonify({"image": b64, "file_path": web_path})
+        up = _upload_png_b64_to_cloudinary(b64, folder=CLOUDINARY_FOLDER, prompt_ctx="sketch→realistic")
+        return jsonify({
+            "ok": True,
+            "image": b64,
+            "file_path": up.get("secure_url"),
+            "cloudinary": {
+                "url": up.get("secure_url"),
+                "public_id": up.get("public_id")
+            }
+        })
 
     except Exception as e:
-        return jsonify({"error": str(e), "trace": traceback.format_exc()}), 500
+        return _err("Failed to generate from sketch", 500, str(e))
 
 # ── Utils ───────────────────────────────────────────────────────────────────
 @app.route("/test")
@@ -278,15 +325,34 @@ def test():
 
 @app.route("/images")
 def list_images():
-    folder = GEN_DIR
-    os.makedirs(folder, exist_ok=True)
-    exts = (".png", ".jpg", ".jpeg", ".webp")
-    files = sorted(
-        (f for f in os.listdir(folder) if f.lower().endswith(exts)),
-        key=lambda x: os.path.getmtime(os.path.join(folder, x)),
-        reverse=True,
-    )
-    return jsonify([f"/static/generated/{f}" for f in files])
+    """
+    Returns a simple list of secure URLs from Cloudinary (keeps your current gallery JS compatible).
+    Optional pagination: pass ?per=24&cursor=<next_cursor>
+    """
+    try:
+        per = min(int(request.args.get("per", 48)), 100)
+        cursor = request.args.get("cursor")
+        search = cloudinary.search.Search() \
+                    .expression(f"folder:{CLOUDINARY_FOLDER}") \
+                    .sort_by("created_at", "desc") \
+                    .max_results(per)
+        if cursor:
+            search = search.next_cursor(cursor)
+
+        res = search.execute()
+        urls = [r.get("secure_url") for r in res.get("resources", []) if r.get("secure_url")]
+        # For backward compatibility, return just the list if no cursor requested
+        if cursor is None and "cursor" not in request.args:
+            return jsonify(urls)
+
+        # If you want pagination, return cursor too (front-end can opt-in)
+        return jsonify({
+            "ok": True,
+            "items": urls,
+            "next_cursor": res.get("next_cursor")
+        })
+    except Exception as e:
+        return _err("Failed to list images from Cloudinary", 500, str(e))
 
 @app.route("/__routes__")
 def __routes__():
@@ -298,6 +364,5 @@ def __routes__():
 
 # ── Main ────────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
-    os.makedirs(GEN_DIR, exist_ok=True)
     print("🔎 URL MAP:\n", app.url_map)
     app.run(host="0.0.0.0", port=int(os.getenv("PORT", 5000)), debug=True)
