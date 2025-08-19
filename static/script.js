@@ -61,12 +61,53 @@ window.addEventListener("DOMContentLoaded", () => {
     "white-balance nuance: neutral-cool studio tone (no color cast on stones/metals)",
     "white-balance nuance: neutral-warm studio tone (no color cast on stones/metals)"
   ];
-  function buildPromptVariants(base, n) {
+
+  // Build a human-readable lock list from current dropdown selections
+  function buildLockedAttributesText() {
+    const type       = getValue("jewelryType");
+    const subcat     = getValue("jewelrySubCategory");
+    const metal      = getValue("metalType");
+    const style      = getValue("jewelryStyle");
+    const gem        = getValue("gemstoneType");
+    const shape      = getValue("diamondShape");
+    const setting    = getValue("settingStyle");
+    const arrangement= getValue("stoneArrangement");
+    const carat      = getValue("caratWeight");
+    const size       = getValue("sizeRange");
+    const goldWeight = getValue("goldWeight");
+    const numDiam    = getValue("numDiamonds");
+
+    const locks = [];
+    if (type)       locks.push(`jewelry type "${type}"`);
+    if (subcat)     locks.push(`subcategory "${subcat}"`);
+    if (metal)      locks.push(`metal "${metal}" (no plating/tint changes)`);
+    if (style)      locks.push(`style "${style}"`);
+    if (gem)        locks.push(`gemstone "${gem}"`);
+    if (shape)      locks.push(`diamond shape "${shape}"`);
+    if (setting)    locks.push(`setting "${setting}"`);
+    if (arrangement)locks.push(`stone arrangement "${arrangement}"`);
+    if (numDiam)    locks.push(`${numDiam} diamond${numDiam === "1" ? "" : "s"}`);
+    if (carat)      locks.push(`total carat ${carat}`);
+    if (goldWeight) locks.push(`gold weight ${goldWeight}`);
+    if (size)       locks.push(`size ${size}`);
+
+    if (!locks.length) return ""; // nothing to lock
+
+    return ` Do not alter locked attributes: ${locks.join(", ")}. `
+         + `Keep materials, colors, counts, proportions, geometry, stone sizes, and settings identical; `
+         + `no motif/engraving changes.`;
+  }
+
+  // Build variant prompts while respecting locked attributes
+  function buildPromptVariants(base, n, locksText = "") {
     const variants = [];
     for (let i = 0; i < n; i++) {
       const hint = VARIATION_HINTS[i % VARIATION_HINTS.length];
+      const lock = locksText ? ` ${locksText}` : "";
       variants.push(
-        `${base} (variation ${i + 1}): ${hint}; keep design, materials, proportions, stone count, and settings identical; maintain front view on a clean white background; ensure there is absolutely no text, numbers, watermarks, grids, labels, or markings on the image.`
+        `${base}${lock} Only vary non-substantive presentation aspects: ${hint}. `
+        + `Keep front view on a clean white background. `
+        + `Ensure absolutely no text, numbers, watermarks, grids, labels, or markings.`
       );
     }
     return variants;
@@ -89,7 +130,7 @@ window.addEventListener("DOMContentLoaded", () => {
     // Keep Carat Weight as a simple static list (no sieve linkage)
     "Carat Weight": ["0 - 0.10 cts","0.11 - 0.25 cts","0.26 - 0.50 cts","0.51 - 1.00 cts"],
     "Size Range": ["Small","Medium","Large","11 mm"],
-    "Gold Weight": ["0-2 gms","2-4 gms","4-6 gms","8 gms","10 gms"]
+    "Gold Weight": ["2-4 gms","4-6 gms","8 gms","10 gms"]
   };
   const jewelryTypeToSubcategories = {
     "Ladies Rings": ["Crossover","Vanki","Eternity","Band","Engagement","Split"],
@@ -268,67 +309,67 @@ window.addEventListener("DOMContentLoaded", () => {
           setTimeout(() => (btn.textContent = old), 1200);
         }
       } catch {}
+
     });
 
     // === Download helpers (multi-image aware) ===
-function collectPreviewImages() {
-  const container = byId("previewContainer");
-  if (!container) return [];
-  return Array.from(container.querySelectorAll(".preview-frame img"))
-    .filter(img => img.src && (img.src.startsWith("data:image") || img.src.startsWith("http")));
-}
+    function collectPreviewImages() {
+      const container = byId("previewContainer");
+      if (!container) return [];
+      return Array.from(container.querySelectorAll(".preview-frame img"))
+        .filter(img => img.src && (img.src.startsWith("data:image") || img.src.startsWith("http")));
+    }
 
-function filenameFromSrc(src, index) {
-  const pad = String(index + 1).padStart(2, "0");
-  // Try to keep original filename if it came from /static
-  try {
-    const u = new URL(src, location.origin);
-    const last = u.pathname.split("/").pop();
-    if (last && /\.[a-z]{3,4}$/i.test(last)) return last;
-  } catch {}
-  return `jewelry_design_${pad}.png`;
-}
+    function filenameFromSrc(src, index) {
+      const pad = String(index + 1).padStart(2, "0");
+      // Try to keep original filename if it came from /static
+      try {
+        const u = new URL(src, location.origin);
+        const last = u.pathname.split("/").pop();
+        if (last && /\.[a-z]{3,4}$/i.test(last)) return last;
+      } catch {}
+      return `jewelry_design_${pad}.png`;
+    }
 
-function triggerDownload(src, filename) {
-  const a = document.createElement("a");
-  a.href = src;
-  a.download = filename || "jewelry_design.png";
-  document.body.appendChild(a);
-  a.click();
-  setTimeout(() => document.body.removeChild(a), 0);
-}
+    function triggerDownload(src, filename) {
+      const a = document.createElement("a");
+      a.href = src;
+      a.download = filename || "jewelry_design.png";
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => document.body.removeChild(a), 0);
+    }
 
-// Optional: keep button label in sync (e.g., "Download 3 Images")
-function updateDownloadButtonLabel() {
-  const dlBtn = byId("downloadImageBtn");
-  if (!dlBtn) return;
-  const imgs = collectPreviewImages();
-  dlBtn.textContent = imgs.length > 1 ? `Download ${imgs.length} Images` : "Download Image";
-}
+    // Optional: keep button label in sync (e.g., "Download 3 Images")
+    function updateDownloadButtonLabel() {
+      const dlBtn = byId("downloadImageBtn");
+      if (!dlBtn) return;
+      const imgs = collectPreviewImages();
+      dlBtn.textContent = imgs.length > 1 ? `Download ${imgs.length} Images` : "Download Image";
+    }
 
-// New downloader: works for 1 or many frames
-function downloadImage() {
-  const imgs = collectPreviewImages();
-  if (imgs.length === 0) {
-    alert("No image to download.");
-    return;
-  }
-  if (imgs.length === 1) {
-    const src = imgs[0].src;
-    triggerDownload(src, filenameFromSrc(src, 0));
-    return;
-  }
-  // Multiple: download all (staggered to avoid browser blocking)
-  imgs.forEach((img, i) => {
-    const src = img.src;
-    const name = filenameFromSrc(src, i);
-    setTimeout(() => triggerDownload(src, name), i * 250);
-  });
-}
+    // New downloader: works for 1 or many frames
+    function downloadImage() {
+      const imgs = collectPreviewImages();
+      if (imgs.length === 0) {
+        alert("No image to download.");
+        return;
+      }
+      if (imgs.length === 1) {
+        const src = imgs[0].src;
+        triggerDownload(src, filenameFromSrc(src, 0));
+        return;
+      }
+      // Multiple: download all (staggered to avoid browser blocking)
+      imgs.forEach((img, i) => {
+        const src = img.src;
+        const name = filenameFromSrc(src, i);
+        setTimeout(() => triggerDownload(src, name), i * 250);
+      });
+    }
 
-window.downloadImage = downloadImage;
-byId("downloadImageBtn")?.addEventListener("click", downloadImage);
-
+    window.downloadImage = downloadImage;
+    byId("downloadImageBtn")?.addEventListener("click", downloadImage);
 
     // === Generate 1–4 images (parallel) and replicate frames dynamically
     async function generateImage() {
@@ -358,7 +399,8 @@ byId("downloadImageBtn")?.addEventListener("click", downloadImage);
           if (img0) img0.src = src; else setImage(0, src);
         } else {
           // Parallel requests for N frames (time ≈ t, not n·t)
-          const variants = buildPromptVariants(basePrompt, count);
+          const locksText = buildLockedAttributesText();              // <— NEW
+          const variants = buildPromptVariants(basePrompt, count, locksText); // <— NEW
           await Promise.all(variants.map((v, i) =>
             fetchJSON("/generate", {
               method: "POST",
@@ -449,7 +491,7 @@ byId("downloadImageBtn")?.addEventListener("click", downloadImage);
 
       try {
         const apiGenerate = document.querySelector('meta[name="api-generate"]')?.content || "/generate";
-        const data = await fetchJSON(apiGenerate, {
+        const data = await fetchJSON(api-generate, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ prompt })
