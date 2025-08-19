@@ -89,7 +89,7 @@ window.addEventListener("DOMContentLoaded", () => {
     // Keep Carat Weight as a simple static list (no sieve linkage)
     "Carat Weight": ["0 - 0.10 cts","0.11 - 0.25 cts","0.26 - 0.50 cts","0.51 - 1.00 cts"],
     "Size Range": ["Small","Medium","Large","11 mm"],
-    "Gold Weight": ["2-4 gms","4-6 gms","8 gms","10 gms"]
+    "Gold Weight": ["0-2 gms","2-4 gms","4-6 gms","8 gms","10 gms"]
   };
   const jewelryTypeToSubcategories = {
     "Ladies Rings": ["Crossover","Vanki","Eternity","Band","Engagement","Split"],
