@@ -1,15 +1,27 @@
 {% extends "base.html" %}
 {% block title %}Gallery · JewelGen AI{% endblock %}
-{% block meta %}<meta name="description" content="Browse previously generated jewelry concepts in the gallery." />{% endblock %}
-{% block content %}
-<section class="app-section" aria-labelledby="gallery-heading">
-  <h1 id="gallery-heading">Gallery</h1>
-  <div id="galleryItems" class="gallery-grid-only" role="list"></div>
 
-  <div id="lightbox" class="lightbox hidden" aria-modal="true" role="dialog" aria-labelledby="lightboxPrompt">
-    <button id="closeLightboxBtn" class="lightbox-close" aria-label="Close">×</button>
-    <img id="lightboxImage" alt="Expanded gallery preview" />
-    <p id="lightboxPrompt"></p>
+{% block content %}
+<main class="container">
+  <h1>Gallery</h1>
+  <div id="galleryItems" class="gallery-grid"></div>
+</main>
+
+<!-- Modal -->
+<div id="imgModal" class="modal" aria-hidden="true">
+  <div class="modal__backdrop"></div>
+  <div class="modal__dialog" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <button class="modal__close" id="modalClose" type="button" aria-label="Close">&times;</button>
+
+    <img id="modalImg" alt="Generated jewelry" />
+    <div class="modal__meta">
+      <h2 id="modalTitle">PROMPT</h2>
+      <p id="modalPrompt">(no saved prompt)</p>
+      <div class="modal__actions">
+        <button id="copyPromptModal" type="button">Copy Prompt</button>
+        <button id="modalDeleteBtn" type="button">Delete</button>
+      </div>
+    </div>
   </div>
-</section>
+</div>
 {% endblock %}
