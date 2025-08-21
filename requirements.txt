@@ -11,3 +11,9 @@ openai>=1.35.0
 
 # --- Utils ---
 requests>=2.32.0
+
+# --- Cloudinary ---
+cloudinary>=1.36.0
+
+# --- Image utils (optional) ---
+Pillow>=10.4.0
