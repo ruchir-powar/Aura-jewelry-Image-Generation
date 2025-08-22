@@ -200,54 +200,70 @@ window.addEventListener("DOMContentLoaded", () => {
 
     // ── Prompt builder
     function generatePrompt() {
-      const type       = getValue("jewelryType");
-      const subcat     = getValue("jewelrySubCategory");
-      const metal      = getValue("metalType");
-      const style      = getValue("jewelryStyle");
-      const gem        = getValue("gemstoneType");
-      const shape      = getValue("diamondShape");
-      const setting    = getValue("settingStyle");
-      const arrangement= getValue("stoneArrangement");
-      const carat      = getValue("caratWeight");
-      const size       = getValue("sizeRange");
-      const goldWeight = getValue("goldWeight");
-      const numDiam    = getValue("numDiamonds");
+  const type       = getValue("jewelryType");
+  const subcat     = getValue("jewelrySubCategory");
+  const metal      = getValue("metalType");
+  const style      = getValue("jewelryStyle");
+  const gem        = getValue("gemstoneType");
+  const shape      = getValue("diamondShape");
+  const setting    = getValue("settingStyle");
+  const arrangement= getValue("stoneArrangement");
+  const carat      = getValue("caratWeight");
+  const size       = getValue("sizeRange");
+  const goldWeight = getValue("goldWeight");
+  const numDiam    = getValue("numDiamonds");
 
-      let prompt = `Lightweight`;
-      if (type)   prompt += ` ${type.toLowerCase()}`;
-      if (subcat) prompt += ` (${subcat.toLowerCase()})`;
+  let prompt = `Lightweight`;
 
-      if (metal) prompt += ` crafted in ${metal.toLowerCase()}`;
-      prompt += ` with a high-polish finish`;
+  if (type)   prompt += ` ${type.toLowerCase()}`;
+  if (subcat) prompt += ` (${subcat.toLowerCase()})`;
 
-      if (gem) {
-        prompt += `, featuring ${gem.toLowerCase()}`;
-        if (shape) prompt += ` in a ${shape.toLowerCase()} cut`;
-      }
-      if (setting)     prompt += `, set using a ${setting.toLowerCase()} setting`;
-      if (arrangement) prompt += `, arranged in ${arrangement.toLowerCase()}`;
+  if (metal) prompt += ` crafted in ${metal.toLowerCase()}`;
+  prompt += ` with a high-polish finish`;
 
-      if (numDiam) prompt += `, using ${numDiam} diamond${numDiam === "1" ? "" : "s"}`;
-      if (carat)   prompt += ` totaling ${carat}`;
-      if (goldWeight) prompt += `, with a gold weight of ${goldWeight}`;
+  if (gem) {
+    prompt += `, featuring ${gem.toLowerCase()}`;
+    if (shape) prompt += ` in a ${shape.toLowerCase()} cut`;
+  }
+  if (setting)     prompt += `, set using a ${setting.toLowerCase()} setting`;
+  if (arrangement) prompt += `, arranged in ${arrangement.toLowerCase()}`;
 
-      if (style || size) {
-        prompt += `. Designed`;
-        if (style) prompt += ` in a ${style.toLowerCase()} style`;
-        if (size)  prompt += `, size ${size.toLowerCase()}`;
-      }
+  if (numDiam) prompt += `, using ${numDiam} diamond${numDiam === "1" ? "" : "s"}`;
+  if (carat)   prompt += ` totaling ${carat}`;
+  if (goldWeight) prompt += `, with a gold weight of ${goldWeight}`;
 
-      // Render constraints & no-text rule
-      prompt += `. Hyper-realistic render, front view on a pure white background under studio lighting, accurate metal/stone reflections; ensure there is absolutely no text, numbers, watermarks, grids, labels, or markings on the image.`;
+  if (style || size) {
+    prompt += `. Designed`;
+    if (style) prompt += ` in a ${style.toLowerCase()} style`;
+    if (size)  prompt += `, size ${size.toLowerCase()}`;
+  }
 
-      // Capitalize first character
-      prompt = prompt.charAt(0).toUpperCase() + prompt.slice(1);
+  // === Special injection ONLY for Tanmaniya ===
+  if (type && type.toLowerCase() === "tanmaniyas") {
+    prompt += `. Chain partially visible in a clean V-shape, made of alternating black enamel beads and polished gold beads (2–3 mm), evenly spaced.`;
+  }
+  // === Special injection ONLY for Tanmaniyas ===
+if (type && type.toLowerCase() === "tanmaniyas") {
+  prompt += `. Chain partially visible in a clean, symmetrical V-shape (only the front portion shown), ` +
+            `made of alternating black enamel beads and polished gold beads (2–3 mm), evenly spaced; ` +
+            `no mesh, snake, tube, link, or tennis-style chain; no gemstones in the chain. ` +
+            `Proper front elevation (no angle, no 3/4 tilt, no perspective), pendant perfectly centered`;
+}
 
-      byId("promptBox").value = prompt;
-      const fp = byId("finalPrompt");
-      if (fp) fp.value = prompt;
-      return prompt;
-    }
+  // --- Universal rendering basics ---
+  prompt += `. Hyper-realistic render, front view on a pure white background under studio lighting, accurate metal/stone reflections; ` +
+            `ensure there is absolutely no text, numbers, watermarks, grids, labels, or markings on the image.`;
+
+  // Capitalize first letter
+  prompt = prompt.charAt(0).toUpperCase() + prompt.slice(1);
+
+  byId("promptBox").value = prompt;
+  const fp = byId("finalPrompt");
+  if (fp) fp.value = prompt;
+
+  return prompt;
+}
+
     window.generatePrompt = generatePrompt;
 
     byId("generateBtn")?.addEventListener("click", (e) => {
@@ -667,7 +683,7 @@ function initGallery() {
 
   loadGalleryImages();
 }
-  
+
 
   // ────────────────────────────────────────────────────────────
   // INSPIRATION (no-op)
