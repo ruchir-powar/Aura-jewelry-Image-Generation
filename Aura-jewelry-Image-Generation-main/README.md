@@ -1,1 +1,0 @@
-# Aura-jewelry-Image-Generation
