@@ -1,0 +1,25 @@
+
+# --- Core ---
+Flask>=2.2
+Flask-Cors>=4.0.0
+gunicorn==22.0.0
+
+# --- Environment ---
+python-dotenv>=1.0.1
+
+# --- OpenAI SDK ---
+openai>=1.35.0
+
+# --- Utils ---
+requests>=2.32.0
+
+# --- Cloudinary ---
+cloudinary>=1.36.0
+
+# --- Image utils (optional) ---
+Pillow>=10.4.0
+requests
+Pillow
+# (only if you decide to preprocess edges yourself)
+opencv-python
+numpy

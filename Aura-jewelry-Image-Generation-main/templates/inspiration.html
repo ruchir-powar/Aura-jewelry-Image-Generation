@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Sketch to Image · JewelGen AI{% endblock %}
+{% block meta %}
+<meta name="description" content="Upload a jewelry sketch and generate a realistic jewelry render." />
+<!-- (optional) override endpoint if needed -->
+<!-- <meta name="api-generate-from-sketch" content="/generate_from_sketch"> -->
+{% endblock %}
+
+{% block content %}
+<script>
+  // page identity for main.js
+  document.addEventListener("DOMContentLoaded", () => { document.body.dataset.page = "inspiration"; });
+</script>
+
+<section class="app-section" aria-labelledby="sketch-heading">
+  <h1 id="sketch-heading" style="text-align:center; margin-top:40px; color:#FFD700; font-size:42px; font-weight:bold;">
+    Sketch ✍️ → Jewelry Image 💍
+  </h1>
+  <h2 style="text-align:center; color:#888; font-size:22px; margin-top:8px; font-style:italic;">
+    Upload your hand-drawn sketch, select jewelry type, and let AI do the magic ✨
+  </h2>
+
+  <div class="form-container" style="max-width:700px; margin:30px auto; padding:25px; background:#111; border-radius:16px; box-shadow:0 8px 20px rgba(0,0,0,0.4); color:white;">
+    <!-- Upload Sketch -->
+    <label for="sketchUpload" style="font-size:18px; font-weight:600; display:block; margin-bottom:10px;">Upload Sketch:</label>
+    <input type="file" id="sketchUpload" accept="image/*"
+           style="padding:10px; background:#222; border:1px solid #FFD700; border-radius:10px; width:100%; margin-bottom:20px; color:#FFD700;">
+
+    <!-- Jewelry Type Dropdown -->
+    <label for="jewelryType" style="font-size:18px; font-weight:600; display:block; margin-bottom:10px;">Jewelry Type:</label>
+    <select id="jewelryType"
+            style="padding:12px; background:#222; border:1px solid #FFD700; border-radius:10px; width:100%; color:#FFD700; margin-bottom:20px;">
+      <option value="" disabled selected>Choose type...</option>
+      <option value="ring">Ring</option>
+      <option value="pendant">Pendant</option>
+      <option value="necklace">Necklace</option>
+      <option value="earrings">Earrings</option>
+      <option value="bracelet">Bracelet</option>
+      <option value="tanmaniya">Tanmaniya</option>
+    </select>
+
+    <!-- Generate Button -->
+    <button id="generateSketchBtn"
+            style="display:block; width:100%; padding:14px; background:#FFD700; border:none; border-radius:10px; color:#111; font-size:18px; font-weight:bold; cursor:pointer; transition:0.3s;">
+      Generate Image 🚀
+    </button>
+  </div>
+
+  <!-- Preview Section -->
+  <div id="sketchResult" style="max-width:800px; margin:40px auto; text-align:center; display:none;">
+    <h3 style="color:#FFD700; margin-bottom:20px;">AI Generated Jewelry Render</h3>
+    <img id="sketchPreviewImage" src="" alt="Generated jewelry render" style="max-width:100%; border-radius:12px; box-shadow:0 6px 18px rgba(0,0,0,0.5); margin-bottom:20px;">
+    <p id="sketchPrompt" style="color:#bbb; font-size:16px; font-style:italic;"></p>
+    <button id="saveToGalleryBtn" style="padding:12px 24px; background:#FFD700; border:none; border-radius:10px; font-weight:bold; cursor:pointer; margin-top:10px;">
+      Save to Gallery 📂
+    </button>
+  </div>
+</section>
+{% endblock %}
