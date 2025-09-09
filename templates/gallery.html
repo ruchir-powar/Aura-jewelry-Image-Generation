@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+{% block title %}Gallery · JewelGen AI{% endblock %}
+
+{% block styles %}
+<style>
+  /* Layout: sticky album list on the LEFT, content on the RIGHT */
+  .gallery-layout{
+    display:grid;
+    grid-template-columns: 280px 1fr; /* left panel bigger */
+    gap:24px;
+    margin-top:20px;
+    padding-bottom:80px;
+  }
+  @media (max-width: 980px){ .gallery-layout{ grid-template-columns:1fr; } }
+
+  /* Left panel */
+  aside.card{
+    position:sticky; top:88px; height:fit-content;
+    background:#fff; border:1px solid #f1f5f9; border-radius:16px;
+    padding:16px; box-shadow:var(--shadow);
+    text-align:left; /* make sure labels are left-aligned */
+  }
+  .album-search{
+    width:100%; padding:10px 12px; border:1px solid #e7e7eb; border-radius:12px;
+    background:#fffdf8; outline:none; transition:all .18s ease;
+  }
+  .album-search:focus{ border-color:#ffd54a; box-shadow:0 0 0 3px rgba(255,212,0,.25); }
+  .album-list{ list-style:none; padding:0; margin:10px 0 0; max-height: 360px; overflow:auto; }
+  .album-list li{
+    padding:8px 10px; border-radius:10px; cursor:pointer; color:#253039;
+  }
+  .album-list li:hover{ background:#fafafa; }
+  .album-list li.active{
+    background: linear-gradient(90deg,#fff7cc,#ffd400);
+    font-weight:700;
+  }
+
+  /* Grid: bigger cards; 3 in a row on desktop */
+  .gallery-grid{
+    display:grid;
+    grid-template-columns:repeat(3, minmax(0,1fr));
+    gap:20px;
+  }
+  @media (max-width: 1100px){ .gallery-grid{ grid-template-columns:repeat(2,1fr); } }
+  @media (max-width: 640px){  .gallery-grid{ grid-template-columns:1fr; } }
+
+  .gallery-card{
+    border:1px solid #eaeef3; border-radius:14px; background:#fff;
+    box-shadow:0 8px 24px rgba(0,0,0,.05);
+    overflow:hidden; display:flex; flex-direction:column; cursor:pointer;
+    transition: transform .15s ease, box-shadow .15s ease;
+  }
+  .gallery-card:hover{ transform:translateY(-2px); box-shadow:0 12px 28px rgba(0,0,0,.08); }
+
+  .gallery-card .imgwrap{
+    width:100%;
+    /* larger image area; gentle portrait ratio feels luxe */
+    aspect-ratio: 5 / 4;
+    background:#f8fafc; display:grid; place-items:center;
+  }
+  .gallery-card img{ width:100%; height:100%; object-fit:cover; display:block; }
+
+  /* Prompt caption: 2-line clamp, expands on hover */
+  .gallery-card .caption{
+    position:relative; padding:12px 14px; font-size:14px; color:#253039;
+    background:linear-gradient(180deg,#fff,#fffef8); border-top:1px solid #f1f1f1;
+    line-height:1.5;
+    /* fallback clamp */
+    --lines:2; max-height:calc(1.5em * var(--lines) + 6px); overflow:hidden;
+  }
+  @supports (-webkit-line-clamp: 2){
+    .gallery-card .caption{ display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; max-height:none; }
+  }
+  .gallery-card .caption::after{
+    content:""; position:absolute; left:0; right:0; bottom:0; height:18px;
+    background:linear-gradient(to bottom, rgba(255,255,255,0), #fffef8); pointer-events:none;
+  }
+  .gallery-card:hover .caption{ max-height:140px; overflow:auto; border-bottom:1px solid #f5f5f5; }
+  @supports (-webkit-line-clamp:2){ .gallery-card:hover .caption{ -webkit-line-clamp: initial; } }
+  .gallery-card .caption::-webkit-scrollbar{ width:8px; }
+  .gallery-card .caption::-webkit-scrollbar-thumb{ background:#ececec; border-radius:4px; }
+
+  /* Meta: album chip left, date pill right */
+  .gallery-card .meta{
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    padding:10px 14px; border-top:1px solid #f3f3f3; background:#fff;
+  }
+  .chip{
+    display:inline-flex; align-items:center; gap:6px;
+    font-size:11px; font-weight:800; text-transform:capitalize;
+    padding:6px 10px; border-radius:999px;
+    background:#fffdf7; border:1px solid #ffe79e; color:#7a5600;
+    box-shadow:0 1px 0 rgba(255,229,128,.6) inset, 0 1px 0 #fff;
+  }
+  .date-pill{
+    font-size:12px; color:#475569; white-space:nowrap;
+    padding:6px 10px; border-radius:999px; background:#f8fafc; border:1px solid #e5e7eb;
+  }
+
+  /* Modal polish */
+  .modal{ position:fixed; inset:0; display:none; place-items:center; z-index:50; }
+  .modal[aria-hidden="false"]{ display:grid; }
+  .modal__backdrop{ position:absolute; inset:0; background:rgba(0,0,0,.6); }
+  .modal__dialog{
+    position:relative; background:#fff; border-radius:14px; max-width:980px; width:92%;
+    display:grid; grid-template-columns: 2fr 1fr; overflow:hidden; box-shadow:0 14px 40px rgba(0,0,0,.25);
+  }
+  @media (max-width: 720px){ .modal__dialog{ grid-template-columns:1fr; } }
+  .modal__close{ position:absolute; top:8px; right:12px; font-size:28px; background:none; border:none; cursor:pointer; }
+  .modal__figure{ background:#fafafa; display:grid; place-items:center; min-height:360px; }
+  .modal__figure img{ max-width:100%; height:auto; display:block; }
+  .modal__meta{ padding:18px; display:flex; flex-direction:column; }
+  .modal__meta h2{ margin:0 0 8px; font-size:18px; }
+  .modal__meta p{
+    flex:1; font-size:14px; line-height:1.55; white-space:pre-wrap; color:#2a323a;
+    background:#fffef8; border:1px solid #f4e7b5; border-radius:12px; padding:12px;
+  }
+  .modal__meta .muted{ font-size:12px; color:#6b7280; margin-top:10px; }
+  .btnlink{ appearance:none; border:1px solid #e7e7eb; background:#fff; padding:8px 12px; border-radius:10px; cursor:pointer; }
+  .btnlink:hover{ box-shadow:0 2px 8px rgba(0,0,0,.05); }
+</style>
+{% endblock %}
+
+{% block content %}
+<script>document.body.dataset.page = "gallery";</script>
+
+<main class="container gallery-layout">
+  <!-- Left: Albums -->
+  <aside class="card">
+    <h2 style="margin:4px 0 10px;">Albums</h2>
+    <input id="albumSearch" class="album-search" type="text" placeholder="Search albums…">
+    <ul id="albumList" class="album-list"></ul>
+    <hr>
+    <button id="showAll" type="button" class="btn small">Show All Photos</button>
+  </aside>
+
+  <!-- Right: Grid -->
+  <section>
+    <h1>Gallery</h1>
+    <div id="galleryItems" class="gallery-grid"></div>
+    <div id="scrollSentinel" style="height:1px;"></div>
+  </section>
+</main>
+
+<!-- Modal -->
+<div id="imgModal" class="modal" aria-hidden="true">
+  <div class="modal__backdrop"></div>
+  <div class="modal__dialog">
+    <button class="modal__close" id="modalClose" aria-label="Close">&times;</button>
+    <figure class="modal__figure">
+      <img id="modalImg" alt="Generated jewelry">
+    </figure>
+    <div class="modal__meta">
+      <h2>Prompt</h2>
+      <p id="modalPrompt">(no saved prompt)</p>
+      <div class="muted" id="modalMetaLine"></div>
+      <div style="display:flex;gap:8px;margin-top:10px;">
+        <button id="copyPromptModal" class="btnlink">Copy Prompt</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<meta name="api-images" content="/images">
+<script type="module" src="/static/js/pages/galleryPage.js"></script>
+{% endblock %}

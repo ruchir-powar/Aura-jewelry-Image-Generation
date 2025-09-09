@@ -1,0 +1,369 @@
+{# ---------- Page ID auto-detect ---------- #}
+{% if self._TemplateReference__context.name == "index.html" %}
+  {% set page_id = "index" %}
+{% elif self._TemplateReference__context.name == "motif.html" %}
+  {% set page_id = "motif" %}
+{% elif self._TemplateReference__context.name == "motiftovector.html" %}
+  {% set page_id = "motifvec" %}
+{% elif self._TemplateReference__context.name == "design_variant_generator.html" %}
+  {% set page_id = "variants" %}
+{% elif self._TemplateReference__context.name == "setgenerator.html" %}
+  {% set page_id = "setgen" %}
+{% elif self._TemplateReference__context.name == "gallery.html" %}
+  {% set page_id = "gallery" %}
+{% else %}
+  {% set page_id = "" %}
+{% endif %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{% block title %}JewelGen AI · Light & Bright Parallax{% endblock %}</title>
+  <meta name="color-scheme" content="light" />
+  <meta name="theme-color" content="#fff7cc" />
+  {% block meta %}{% endblock %}
+
+  <style>
+    /* -------------------- CSS RESET -------------------- */
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji";
+      background: #ffffff;
+      color: #111827;
+      overflow-x: hidden;
+    }
+    img, svg, video, canvas { max-width: 100%; display: block; }
+    a { color: inherit; text-decoration: none; }
+
+    :root{
+      --bg:#ffffff;
+      --ink:#0f172a;
+      --muted:#6b7280;
+      --brand:#ffd400;   /* warm yellow */
+      --brand-2:#ffb800; /* deeper yellow */
+      --accent:#7c3aed;  /* subtle violet accent */
+      --shadow:0 10px 30px rgba(0,0,0,.08);
+      --glass:rgba(255,255,255,.6);
+      --radius:20px;
+    }
+
+    .glass{
+      background: var(--glass);
+      backdrop-filter: saturate(140%) blur(10px);
+      -webkit-backdrop-filter: saturate(140%) blur(10px);
+      box-shadow: var(--shadow);
+      border: 1px solid rgba(255,255,255,.5);
+    }
+
+    /* Cursor glow */
+    .cursor-glow{
+      position: fixed; left: 0; top: 0; width: 380px; height: 380px; border-radius: 50%;
+      pointer-events:none; mix-blend-mode: screen;
+      background: radial-gradient(circle at center, rgba(255,212,0,.40), rgba(255,184,0,.23) 40%, rgba(255,184,0,0) 65%);
+      filter: blur(8px); transform: translate(-50%, -50%); z-index: 10;
+      transition: opacity .4s ease; opacity: .9;
+    }
+    @media (prefers-reduced-motion: reduce){ .cursor-glow{ display:none; } }
+
+    /* Sparkles canvas */
+    #sparkles { position: fixed; inset: 0; pointer-events: none; z-index: 1; }
+
+    /* -------------------- NAVBAR -------------------- */
+    header{ position: sticky; top: 0; z-index: 20; }
+
+    .nav{
+      display:flex; align-items:center; justify-content:space-between; gap:20px;
+      padding: 12px 16px; margin: 10px; border-radius: 999px;
+      background: linear-gradient(180deg, rgba(255,255,255,.92), rgba(255,255,255,.78));
+      border:1px solid rgba(255, 224, 99, .6);
+      box-shadow: 0 10px 30px rgba(255, 213, 0, .18);
+      position: relative;
+      overflow: visible; /* keep shadows clean; no clipping */
+    }
+
+    .logo{
+      display:flex; align-items:center; gap:12px; font-weight:800; letter-spacing:.3px;
+      background: linear-gradient(90deg, #111827 0%, #4b5563 48%, #111827 100%);
+      -webkit-background-clip: text; background-clip: text; color: transparent;
+      white-space: nowrap;
+    }
+    .logo-mark{
+      width:36px; height:36px; border-radius: 12px;
+      background: conic-gradient(from 180deg, var(--brand), #fff7cc 25%, var(--brand-2) 50%, #fff7cc 75%, var(--brand));
+      box-shadow: 0 8px 20px rgba(255,184,0,.35); transform: rotate(-8deg);
+      flex: 0 0 36px;
+    }
+
+    /* Disable the large decorative sweep that caused yellow arcs */
+    .nav::before{ display:none; }
+
+    nav ul{ display:flex; align-items:center; gap:8px; list-style:none; padding:0; margin:0; flex-wrap:wrap; }
+    nav a{
+      position:relative;
+      display:inline-flex; align-items:center; justify-content:center;
+      height:44px; line-height:44px; padding:0 14px;
+      border-radius:12px; font-weight:700; letter-spacing:.2px; color:#334155;
+      transition: box-shadow .25s ease, background .25s ease;
+      white-space: nowrap;
+    }
+    nav a::after{
+      content:""; position:absolute; left:12%; right:12%; bottom:6px; height:2px;
+      background: linear-gradient(90deg, transparent, var(--brand), transparent);
+      border-radius:2px; transform: scaleX(0); transform-origin: center;
+      transition: transform .45s cubic-bezier(.22,.7,0,1);
+    }
+    nav a:hover::after, nav a:focus-visible::after{ transform: scaleX(1); }
+
+    .nav .cta{
+      background: linear-gradient(180deg, #fff4b3, #ffd400);
+      border:1px solid #ffe06b;
+      box-shadow: 0 6px 16px rgba(255,212,0,.28), inset 0 1px 0 rgba(255,255,255,.8);
+      height:44px; padding:0 16px; border-radius:12px;
+    }
+
+    /* Animate items on first paint */
+    .nav .item { opacity: 0; transform: translateY(-10px) scale(.98); animation: itemIn .55s cubic-bezier(.2,.9,.1,1.1) var(--d) both; }
+    @keyframes itemIn{ to{ opacity:1; transform: translateY(0) scale(1); } }
+
+    /* ACTIVE STATE — keep compact (no scale pop) */
+    .nav a.active{
+      background: linear-gradient(90deg, #ffe082, #ffd400);
+      color:#111;
+      transform: none; /* removed scale(1.06) to avoid layout blow-up */
+      box-shadow: 0 0 0 1px #ffe06b inset, 0 4px 12px rgba(255,212,0,.22);
+    }
+    /* Map body[data-page] to highlight automatically */
+    body[data-page="index"]    .nav a[data-page="index"],
+    body[data-page="motif"]    .nav a[data-page="motif"],
+    body[data-page="motifvec"] .nav a[data-page="motifvec"],
+    body[data-page="variants"] .nav a[data-page="variants"],
+    body[data-page="setgen"]   .nav a[data-page="setgen"],
+    body[data-page="gallery"]  .nav a[data-page="gallery"]{
+      background: linear-gradient(90deg, #ffe082, #ffd400);
+      color:#111;
+      transform: none;
+      box-shadow: 0 0 0 1px #ffe06b inset, 0 4px 12px rgba(255,212,0,.22);
+    }
+
+    /* Responsive: wrap nicely on small screens */
+    @media (max-width: 900px){
+      .nav{ padding:10px 12px; }
+      nav ul{ gap:6px; }
+      nav a, .nav .cta{ height:40px; line-height:40px; padding:0 12px; border-radius:10px; }
+      .logo-mark{ width:32px; height:32px; flex-basis:32px; }
+    }
+
+    /* -------------------- Optional hero (kept off by default) -------------------- */
+    .hero{ position: relative; min-height: 52vh; display:grid; place-items:center; padding: 44px 20px 24px; overflow:hidden; z-index:0; }
+    .halo{ position:absolute; inset:-10%; background: radial-gradient(circle at 50% 20%, rgba(255, 212,0,.20), rgba(255, 212,0,0) 55% ); z-index:0; pointer-events:none; }
+    .parallax{ position: absolute; inset:0; pointer-events:none; z-index: 0; }
+    .layer{ position:absolute; inset:auto; width: 120vw; height: 45vh; left: 50%; transform: translateX(-50%); opacity: .25; filter: blur(20px) saturate(120%); }
+    .layer.l1{ top:-10vh; background: radial-gradient( 600px 280px at 30% 40%, #fff6a1, transparent 60% ); }
+    .layer.l2{ top: 8vh;  background: radial-gradient( 700px 320px at 70% 30%, #ffe17a, transparent 60% ); }
+    .layer.l3{ top:22vh; background: radial-gradient( 800px 360px at 50% 50%, #ffd24d, transparent 60% ); }
+
+    /* Common utilities */
+    .container{ max-width: 1120px; margin: 0 auto; padding: 0 16px; }
+    .app-section{ padding: 22px 0 60px; position:relative; z-index:1; }
+    .muted{ color: var(--muted); }
+
+    /* Give pages a little top space below sticky header */
+    main, .app-section, .container { padding-top: 40px; }
+
+    /* Reveal on scroll */
+    .reveal{ opacity: 0; transform: translateY(18px) scale(.98); transition: opacity .6s ease, transform .7s cubic-bezier(.2,.75,.05,1); will-change: transform; }
+    .reveal.visible{ opacity:1; transform: translateY(0) scale(1); }
+
+    /* Footer */
+    footer{ padding:50px 20px; text-align:center; color:#64748b; border-top:1px solid #f1f1f1; }
+
+    /* Reduced motion */
+    @media (prefers-reduced-motion: reduce){
+      .nav .item, .btn .pulse, .btn .ripple { animation: none !important; }
+      .reveal{ transition: none; opacity:1; transform:none; }
+    }
+
+    /* Buttons (+ ripple) */
+    .btn{ position:relative; isolation:isolate; padding:12px 18px; border-radius:14px; border:1px solid #e5e7eb; background: #fff; box-shadow: var(--shadow); font-weight:700; cursor:pointer; }
+    .btn.primary{ background: linear-gradient(180deg, #fff7cc, #ffd400); border-color:#ffe26b; }
+    .btn .pulse{ position:absolute; inset:-4px; border-radius:inherit; background: radial-gradient( circle at center, rgba(255, 212,0,.22), rgba(255,212,0,0) 60% ); opacity:0; animation: pulse 1.6s ease-out infinite; z-index:-1; }
+    @keyframes pulse{ 0%{ opacity:.2; transform: scale(.9);} 70%{ opacity:0; transform: scale(1.2);} 100%{ opacity:0; transform: scale(1.3);} }
+    .btn { overflow: hidden; }
+    .btn .ripple { position:absolute; border-radius: 999px; transform: translate(-50%,-50%); animation: ripple .8s ease-out forwards; background: rgba(255, 212, 0, .35); }
+    @keyframes ripple{ from{ width:0; height:0; opacity:.6; } to{ width:420px; height:420px; opacity:0; } }
+  </style>
+
+  {% block styles %}{% endblock %}
+</head>
+<body data-page="{{ page_id }}">
+  <!-- sparkles + cursor glow -->
+  <canvas id="sparkles" aria-hidden="true"></canvas>
+  <div class="cursor-glow" id="cursorGlow" aria-hidden="true"></div>
+
+  <header>
+    <div class="nav" role="navigation" aria-label="Primary">
+      <div class="logo item" style="--d:120ms">
+        <div class="logo-mark" aria-hidden="true"></div>
+        <span>JewelGen&nbsp;AI</span>
+      </div>
+      <nav>
+        <ul>
+          <li class="item" style="--d:220ms"><a href="/"                 data-page="index">Home</a></li>
+          <li class="item" style="--d:260ms"><a href="/motif"            data-page="motif">Motif</a></li>
+          <li class="item" style="--d:300ms"><a href="/motiftovector"    data-page="motifvec">Motif→Vector</a></li>
+          <li class="item" style="--d:320ms"><a href="/design-variants"  data-page="variants">Variants</a></li>
+          <li class="item" style="--d:340ms"><a href="/setgenerator"     data-page="setgen">Set Gen</a></li>
+          <li class="item" style="--d:360ms"><a href="/gallery"          data-page="gallery">Gallery</a></li>
+          <li class="item" style="--d:380ms">
+            <a class="btn cta" href="/#generate"><span class="pulse"></span>Generate</a>
+          </li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  {# Optional hero removed; uncomment if you use it
+  <section class="hero" aria-hidden="true">
+    <div class="halo"></div>
+    <div class="parallax" aria-hidden="true">
+      <div class="layer l1"></div>
+      <div class="layer l2"></div>
+      <div class="layer l3"></div>
+    </div>
+  </section>
+  #}
+
+  {% block content %}{% endblock %}
+
+  <footer>
+    © <span id="year"></span> JewelGen AI · Made by Ruchir & Afzal 🚀
+  </footer>
+
+  <!-- Core JS (router + effects) -->
+  <script>
+    // -------------------- UTILITIES --------------------
+    const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    document.getElementById('year').textContent = new Date().getFullYear();
+    window.dispatchEvent(new CustomEvent('jewelgen:ready'));
+
+    // -------------------- CURSOR GLOW --------------------
+    const glow = document.getElementById('cursorGlow');
+    if(glow){
+      let x = window.innerWidth/2, y = window.innerHeight/2;
+      function loop(){ glow.style.transform = `translate(${x}px, ${y}px)`; requestAnimationFrame(loop); }
+      loop();
+      window.addEventListener('pointermove', e=>{ x = e.clientX; y = e.clientY; }, {passive:true});
+      document.addEventListener('mouseleave', ()=> glow.style.opacity = .2);
+      document.addEventListener('mouseenter', ()=> glow.style.opacity = .9);
+    }
+
+    // -------------------- SPARKLES --------------------
+    (function sparkles(){
+      const c = document.getElementById('sparkles'); if(!c) return;
+      const ctx = c.getContext('2d', { alpha: true });
+      let W, H, dpr;
+      function resize(){
+        dpr = Math.min(2, window.devicePixelRatio || 1);
+        W = c.width = Math.floor(innerWidth * dpr);
+        H = c.height = Math.floor(innerHeight * dpr);
+        c.style.width = innerWidth + 'px';
+        c.style.height = innerHeight + 'px';
+      }
+      resize();
+      window.addEventListener('resize', resize);
+
+      const P = [];
+      const MAX = 90;
+      function spawn(x, y){
+        P.push({ x, y, vx:(Math.random()-.5)*.6, vy:(Math.random()-.5)*.6, life: Math.random()*80+40, r: Math.random()*2+0.5 });
+        if(P.length > MAX) P.shift();
+      }
+
+      let tick=0;
+      window.addEventListener('pointermove', e=>{ spawn((e.clientX) * dpr, (e.clientY) * dpr); }, {passive:true});
+
+      function draw(){
+        if(prefersReduced){ return; }
+        tick++;
+        ctx.clearRect(0,0,W,H);
+        if(tick % 3 === 0) spawn(Math.random()*W, Math.random()*H*0.6+H*0.2);
+        for(let i=P.length-1;i>=0;i--){
+          const p = P[i];
+          p.x += p.vx; p.y += p.vy; p.life -= 1.3;
+          const o = Math.max(0, Math.min(1, p.life/100));
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.r * dpr * (1+o*.5), 0, Math.PI*2);
+          const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, 12 * dpr);
+          g.addColorStop(0, `rgba(255, 212, 0, ${0.35*o})`);
+          g.addColorStop(1, `rgba(255, 212, 0, 0)`);
+          ctx.fillStyle = g; ctx.fill();
+          if(p.life <= 0) P.splice(i,1);
+        }
+        requestAnimationFrame(draw);
+      }
+      requestAnimationFrame(draw);
+    })();
+
+    // -------------------- PARALLAX --------------------
+    (function parallax(){
+      const layers = Array.from(document.querySelectorAll('.layer'));
+      if(!layers.length) return;
+      let y = 0; const ease = .08; let target = 0;
+      function onScroll(){ target = window.scrollY || window.pageYOffset; }
+      onScroll();
+      window.addEventListener('scroll', onScroll, {passive:true});
+      function raf(){
+        y += (target - y) * ease;
+        const l1 = y * 0.06, l2 = y * 0.10, l3 = y * 0.14;
+        layers[0] && (layers[0].style.transform = `translate3d(-50%, ${l1}px, 0)`);
+        layers[1] && (layers[1].style.transform = `translate3d(-50%, ${l2}px, 0)`);
+        layers[2] && (layers[2].style.transform = `translate3d(-50%, ${l3}px, 0)`);
+        requestAnimationFrame(raf);
+      }
+      requestAnimationFrame(raf);
+    })();
+
+    // -------------------- REVEAL ON SCROLL --------------------
+    (function reveal(){
+      const els = Array.from(document.querySelectorAll('.reveal'));
+      if(!('IntersectionObserver' in window)){ els.forEach(e=>e.classList.add('visible')); return; }
+      const io = new IntersectionObserver((entries)=>{
+        for(const e of entries){ if(e.isIntersecting){ e.target.classList.add('visible'); io.unobserve(e.target); } }
+      }, {root:null, rootMargin:'0px 0px -10% 0px', threshold: .2});
+      els.forEach(el=> io.observe(el));
+    })();
+
+    // -------------------- RIPPLE BUTTONS --------------------
+    (function ripples(){
+      document.addEventListener('click', (e)=>{
+        const btn = e.target.closest('[data-ripple], .btn');
+        if(!btn) return;
+        const r = document.createElement('span');
+        r.className = 'ripple';
+        const rect = btn.getBoundingClientRect();
+        const x = e.clientX - rect.left; const y = e.clientY - rect.top;
+        r.style.left = x + 'px'; r.style.top = y + 'px'; r.style.width = r.style.height = '0px';
+        btn.appendChild(r);
+        setTimeout(()=> r.remove(), 700);
+      });
+    })();
+
+    // -------------------- ACCESSIBILITY: TAB FOCUS OUTLINE --------------------
+    (function focusStyles(){
+      function setOutline(){ document.body.classList.add('kbd'); }
+      function clearOutline(){ document.body.classList.remove('kbd'); }
+      window.addEventListener('keydown', e=>{ if(e.key === 'Tab') setOutline(); });
+      window.addEventListener('mousedown', clearOutline);
+    })();
+  </script>
+
+  {% block scripts %}{% endblock %}
+
+  <!-- Router (central module) -->
+  <script type="module" src="{{ url_for('static_files', filename='js/main.js') }}"></script>
+</body>
+</html>

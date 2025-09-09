@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% set page_id = "design_variant_generator" %}
+{% block title %}Design Variant Generator · JewelGen AI{% endblock %}
+
+{% block styles %}
+  <style>
+    .page-wrap { max-width: 1100px; margin: 32px auto; padding: 0 16px; }
+    .section-head { display:flex; align-items:baseline; gap:12px; margin-bottom:16px; }
+    .section-head h1 { font-size: 28px; line-height: 1.2; }
+    .tag { display:inline-block; font-size:11px; padding:2px 8px; border-radius:999px; background:#1b1b1b; border:1px solid #2a2a2a; color:#aaa; }
+    .hint { color:#888; font-size:13px; margin-bottom:10px; }
+
+    .panel { margin-top:22px; border:1px solid #232323; border-radius:16px; padding:14px; background:#0b0b0b; }
+    .grid-2 { display:grid; grid-template-columns: 1fr 1fr; gap:16px; }
+    @media (max-width: 900px) { .grid-2 { grid-template-columns: 1fr; } }
+
+    [data-variant-container]{
+      display:grid; grid-template-columns:repeat(auto-fill, minmax(140px, 1fr));
+      gap:14px; align-items:stretch;
+    }
+    [data-variant-option]{
+      border:1px solid #2a2a2a; border-radius:14px; padding:12px;
+      background:#0f0f0f; color:#eee; cursor:pointer; user-select:none;
+      transition: transform .08s, box-shadow .12s, border-color .12s;
+      min-height:82px; display:flex; align-items:center; justify-content:center; text-align:center;
+    }
+    [data-variant-option]:hover{ transform:translateY(-1px); box-shadow:0 6px 16px rgba(0,0,0,.25); }
+    [data-variant-option].active{ border-color:#ffd54a; box-shadow:0 6px 16px rgba(0,0,0,.28); }
+
+    .btnbar{ display:flex; gap:10px; flex-wrap:wrap; margin-top:12px; }
+    .btn{ padding:10px 14px; border-radius:12px; border:1px solid #2a2a2a; background:#141414; color:#eee; cursor:pointer; }
+    .btn.primary{ border-color:#ffd54a; }
+  </style>
+{% endblock %}
+
+{% block content %}
+  <div class="page-wrap">
+    <div class="section-head">
+      <h1>Design Variant Generator</h1>
+      <span class="tag">Variants</span>
+    </div>
+    <p class="hint">Pick options below; selections update the preview and variant payload.</p>
+
+    <!-- Metal -->
+    <section class="panel" aria-labelledby="grp-metal">
+      <h3 id="grp-metal">Metal</h3>
+      <div data-variant-container data-variant-key="metal">
+        <div data-variant-option data-value="18k_yellow">18K Yellow</div>
+        <div data-variant-option data-value="18k_white">18K White</div>
+        <div data-variant-option data-value="18k_rose">18K Rose</div>
+        <div data-variant-option data-value="14k_yellow">14K Yellow</div>
+      </div>
+    </section>
+
+    <!-- Gemstone -->
+    <section class="panel" aria-labelledby="grp-gem">
+      <h3 id="grp-gem">Gemstone</h3>
+      <div data-variant-container data-variant-key="gemstone">
+        <div data-variant-option data-value="diamond">Diamond</div>
+        <div data-variant-option data-value="emerald">Emerald</div>
+        <div data-variant-option data-value="ruby">Ruby</div>
+        <div data-variant-option data-value="sapphire">Sapphire</div>
+      </div>
+    </section>
+
+    <!-- Setting -->
+    <section class="panel" aria-labelledby="grp-setting">
+      <h3 id="grp-setting">Setting</h3>
+      <div data-variant-container data-variant-key="setting">
+        <div data-variant-option data-value="prong">Prong</div>
+        <div data-variant-option data-value="bezel">Bezel</div>
+        <div data-variant-option data-value="pave">Pavé</div>
+        <div data-variant-option data-value="channel">Channel</div>
+      </div>
+    </section>
+
+    <!-- Preview + JSON Payload -->
+    <section class="grid-2">
+      <div class="panel">
+        <h3>Preview</h3>
+        <div id="variant-preview" style="min-height:180px; display:flex; align-items:center; justify-content:center; color:#aaa;">
+          Make a selection to preview…
+        </div>
+        <div class="btnbar">
+          <button class="btn primary" id="btn-generate">Generate Variant</button>
+          <button class="btn" id="btn-reset">Reset</button>
+        </div>
+      </div>
+      <div class="panel">
+        <h3>Selected Options (payload)</h3>
+        <pre id="variant-payload" style="white-space: pre-wrap; user-select:text; min-height:180px; margin:0;"></pre>
+      </div>
+    </section>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+  <!-- router is already included by base.html -->
+  <script type="module" src="/static/js/pages/variantPage.js"></script>
+{% endblock %}

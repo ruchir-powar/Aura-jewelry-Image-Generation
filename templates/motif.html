@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block title %}Motif · JewelGen AI{% endblock %}
+
+{% block content %}
+<script>document.body.dataset.page = "motif";</script>
+
+<div class="wrap" style="max-width:1160px;margin:28px auto 80px;padding:0 16px;">
+  <div class="board" style="display:grid;grid-template-columns:1.2fr .8fr;gap:18px;align-items:start;">
+
+    <!-- LEFT: Upload + Left Preview -->
+    <section class="card" style="padding:18px;background:#fff;border:1px solid #ececec;border-radius:16px;box-shadow:0 2px 10px rgba(0,0,0,.04);">
+      <h1 style="font-size:22px;margin:0 0 8px;display:flex;align-items:center;gap:10px;">
+        <img alt="" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24'%3E%3Cpath fill='%23f5bf00' d='M21 19V5q0-.825-.588-1.412T19 3H5q-.825 0-1.412.588T3 5v14q0 .825.588 1.413T5 21h14q.825 0 1.413-.587T21 19M8 13l2.25 3l3-4l4 5H6z'/%3E%3C/svg%3E"/>
+        Upload Motif Image
+      </h1>
+      <p style="color:#666;margin:0 0 12px;">Drop a motif (PNG/JPG) to extract a clean description and build a perfect prompt.</p>
+
+      <!-- Dropzone -->
+      <div id="motifDrop"
+           style="border:2px dashed #ffd54a;border-radius:14px;padding:20px;min-height:210px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;cursor:pointer;background:#fffcf2;">
+        <input type="file" id="motifUpload" accept="image/*" style="display:none;">
+        <div style="font-weight:700;color:#34495e;">Drag &amp; drop <span style="font-weight:400;">or</span>
+          <button type="button" id="chooseFileBtn" class="btn" style="margin-left:6px;">Choose Image</button>
+        </div>
+        <small style="color:#8a8a8a;margin-top:8px;">Max ~10MB · PNG/JPG · front view preferred</small>
+      </div>
+
+      <!-- File meta -->
+      <div id="fileMeta" style="display:none;margin:8px 2px 0;font-size:12.5px;color:#6b7280;">
+        <span id="fileName"></span>
+        <span>&nbsp;•&nbsp;</span>
+        <span id="fileSize"></span>
+        <span>&nbsp;•&nbsp;</span>
+        <span id="fileDims"></span>
+      </div>
+
+      <!-- Left Preview -->
+      <h3 style="margin:16px 0 8px; font-size:14px; color:#1f2937; display:flex; align-items:center; gap:6px;">
+        Motif Preview <span aria-hidden="true">📸</span>
+      </h3>
+      <div style="border:1px solid #eee;border-radius:12px;min-height:320px;background:#fff;display:flex;align-items:center;justify-content:center;">
+        <img id="motifPreviewImage" alt="Motif preview"
+             style="max-height:420px;max-width:100%;display:none;border-radius:8px;">
+        <span id="noPreview" style="color:#9aa1a9;">No image selected</span>
+      </div>
+
+      <!-- Controls row: Jewelry Type + Generate -->
+      <div style="display:flex;gap:10px;align-items:center;justify-content:center;margin-top:12px;flex-wrap:wrap;">
+        <label for="motifJewelryType" class="sr-only">Jewelry Type</label>
+        <select id="motifJewelryType"
+                style="min-width:220px;padding:10px 12px;border:1px solid #e6e6e6;border-radius:12px;background:#fffdf9;outline:none;">
+          <option value="">-- Select jewelry type --</option>
+          <option>Ladies Rings</option>
+          <option>Men’s Ring</option>
+          <option>Earrings</option>
+          <option>Pendants</option>
+          <option>Round Bangles</option>
+          <option>Oval Bangles</option>
+          <option>Men’s Wrist Wear</option>
+          <option>Bracelet</option>
+          <option>Necklace</option>
+          <option>Tanmaniyas</option>
+        </select>
+
+        <button id="generateMotif" class="btn primary">Generate Description &amp; Prompt</button>
+      </div>
+    </section>
+
+    <!-- RIGHT: Outputs + Right Preview -->
+    <section class="card" style="padding:18px;background:#fff;border:1px solid #ececec;border-radius:16px;box-shadow:0 2px 10px rgba(0,0,0,.04);">
+      <h2 style="font-size:18px;margin:0 0 10px;">AI Outputs</h2>
+
+      <h4 style="margin:6px 0 4px; font-size:13.5px; font-weight:800;">Extracted Description</h4>
+      <textarea id="extractedDescription" rows="4" readonly
+                style="width:100%;border:1px solid #e6e6e6;border-radius:12px;padding:10px;background:#fffefe; font-size:13px;"></textarea>
+
+      <h4 style="margin:10px 0 4px; font-size:13.5px; font-weight:800;">Generated Prompt</h4>
+      <textarea id="generatedMotifPrompt" rows="6" readonly
+                style="width:100%;border:1px solid #e6e6e6;border-radius:12px;padding:10px;background:#fffefe; font-size:13px;"></textarea>
+
+      <div style="margin-top:10px;">
+        <button id="useMotifPromptBtn" class="btn">Use This Prompt</button>
+      </div>
+
+      <h3 style="margin:14px 0 8px; font-size:14px; color:#1f2937; display:flex; align-items:center; gap:6px;">
+        Motif Preview <span aria-hidden="true">📸</span>
+      </h3>
+      <div style="border:1px solid #eee;border-radius:12px;min-height:320px;background:#fff;display:flex;align-items:center;justify-content:center;">
+        <img id="motifResultImage" alt="Generated preview"
+             style="max-height:420px;max-width:100%;display:none;border-radius:8px;">
+        <span id="noResult" style="color:#9aa1a9;">No image yet</span>
+      </div>
+    </section>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- endpoints (optional overrides) -->
+<meta name="api-generate-prompts" content="/generate_prompts">
+<meta name="api-generate" content="/generate">
+<script type="module" src="{{ url_for('static_files', filename='js/pages/motifPage.js') }}"></script>
+{% endblock %}
