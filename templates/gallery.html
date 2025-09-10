@@ -164,5 +164,11 @@
 
 {% block scripts %}
 <meta name="api-images" content="/images">
-<script type="module" src="/static/js/pages/galleryPage.js"></script>
+<script type="module">
+  import { initGallery } from "/static/js/pages/galleryPage.js";
+  document.addEventListener("DOMContentLoaded", () => {
+    initGallery();
+  });
+</script>
 {% endblock %}
+
