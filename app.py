@@ -496,105 +496,89 @@ def generate():
     
     
 # ── Image (motif) → JSON {description, prompt} via GPT-4o Vision ────────────
-@app.route("/generate_prompts", methods=["GET", "POST"])
-def generate_prompts():
-    if request.method == "GET":
-        return _err("Use POST with multipart/form-data (image/motif, use_case).", 405)
-
+@app.post("/generate")
+def generate():
+    import traceback
     try:
-        if _client is None:
-            return _err("OpenAI client not available. Update the openai package.", 500)
+        data = request.get_json(force=True) or {}
+        base_prompt = (data.get("prompt") or "").strip()
+        model_pref  = (data.get("model") or "dall-e-3").strip().lower()
+        album       = (data.get("album") or "index").strip().lower()
+        jtype       = (data.get("jewelry_type") or "").strip()
 
-        # accept both keys: "image" (our backend) or "motif" (some JS versions)
-        image_file = request.files.get("image") or request.files.get("motif")
-        use_case = (request.form.get("use_case") or "").strip() or "Jewelry"
-        if not image_file:
-            return _err("No image uploaded", 400)
+        if not base_prompt:
+            return _err("Prompt is required.", 400)
+        if len(base_prompt) > 4000:
+            return _err("Prompt too long.", 400)
 
-        # Optional user constraints from the form (send them from UI if available)
-        attrs = {
-            "jewelry_type":      (request.form.get("jewelry_type") or "").strip(),
-            "subcategory":       (request.form.get("subcategory") or "").strip(),
-            "metal":             (request.form.get("metal") or "").strip(),
-            "gemstone":          (request.form.get("gemstone") or "").strip(),
-            "diamond_shape":     (request.form.get("diamond_shape") or "").strip(),
-            "setting_style":     (request.form.get("setting_style") or "").strip(),
-            "stone_arrangement": (request.form.get("stone_arrangement") or "").strip(),
-            "num_diamonds":      (request.form.get("num_diamonds") or "").strip(),
-            "carat_weight":      (request.form.get("carat_weight") or "").strip(),
-            "gold_weight":       (request.form.get("gold_weight") or "").strip(),
-            "size_range":        (request.form.get("size_range") or "").strip(),
-        }
-        allow_solitaires = _coerce_bool(request.form.get("allow_solitaires", "false"))
-        force_cluster    = _coerce_bool(request.form.get("force_cluster", "true"))
+        # Start with given prompt
+        prompt = base_prompt
 
-        constraint_block = _build_constraint_text(
-            allow_solitaires=allow_solitaires,
-            force_cluster=force_cluster,
-            attrs=attrs,
+        # If jewelry type provided, prepend guidance
+        if jtype and (jtype.lower() not in base_prompt.lower()):
+            prompt = (
+                f"Create a lightweight {jtype.lower()} design. "
+                f"Respect proportions, ergonomics, and functional constraints appropriate to a {jtype.lower()}. "
+                + base_prompt
+            )
+
+        # --- ENFORCE PRODUCTION CONSTRAINTS ---
+        prompt += (
+            " Ensure design follows lightweight diamond jewellery standards: "
+            "target diamond-to-gold weight ratio around 0.8 (example: 0.25–0.35 cts diamonds on ~2.5–3 gms gold). "
+            "Use open lattice or halo-style frameworks, clustered melee diamonds, and avoid heavy solitaires unless requested. "
+            "Make it production-friendly with realistic thickness, ergonomics for daily wear, "
+            "and elegant CAD-style rendering. "
+            "Output as hyper-realistic catalog-style render, front view, polished finish, "
+            "pure white background, no props, text, or watermarks."
         )
 
-        image_b64 = base64.b64encode(image_file.read()).decode("utf-8")
-
-        system_instructions = f"""
-You are a professional fine jewelry designer AI.
-
-The user uploads a motif image to inspire a lightweight, wearable {use_case.lower()}.
-Return STRICT JSON with keys: "description" and "prompt".
-
-Rules to follow in the prompt:
-{constraint_block}
-""".strip()
-
-        resp = _client.chat.completions.create(
-            model="gpt-4o",
-            messages=[
-                {"role": "system", "content": system_instructions},
-                {
-                    "role": "user",
-                    "content": [
-                        {"type": "text", "text": (
-                            "Analyze the image and write:\n"
-                            "- description: ≤ 50 words (high level, no CAD jargon)\n"
-                            "- prompt: one polished, realistic render prompt that obeys ALL rules above."
-                        )},
-                        {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_b64}"}} ,
-                    ],
-                },
-            ],
-            temperature=0.5,
-            max_tokens=650
-        )
-
-        msg = resp.choices[0].message
-        raw = (msg.content if hasattr(msg, "content") else (msg.get("content") if isinstance(msg, dict) else "")) or ""
-        raw = raw.strip()
-        if raw.startswith("```"):
-            cleaned = raw.strip()
-            if cleaned.startswith("```json"):
-                cleaned = cleaned[7:]
-            elif cleaned.startswith("```"):
-                cleaned = cleaned[3:]
-            if cleaned.endswith("```"):
-                cleaned = cleaned[:-3]
-            raw = cleaned.strip()
+        print("🎯 /generate prompt:", prompt.replace("\n", " "))
 
         try:
-            parsed = json.loads(raw)
-        except json.JSONDecodeError:
-            return _err("Failed to parse GPT response as JSON", 500, raw)
+            b64, url = _images_generate_with_retries(prompt, model_pref=model_pref, tries=3, timeout=90)
+        except Exception as e:
+            print("❌ OpenAI call raised:", repr(e))
+            traceback.print_exc()
+            return _err(f"Upstream (OpenAI) error: {e}", 502, str(e))
 
-        desc = parsed.get("description") or parsed.get("nl_description") or ""
-        pr = parsed.get("prompt") or parsed.get("cad_prompt") or ""
+        if not (b64 or url):
+            return _err("OpenAI image service temporarily unavailable. Please try again.", 503)
 
-        # As a belt-and-suspenders, append a tiny guard if the model omitted it:
-        if pr and "cluster" not in pr.lower() and not allow_solitaires:
-            pr += " Diamonds arranged in clustered pavé or micro-pavé; no solitaire center stone."
+        try:
+            up = _upload_to_cloudinary(
+                b64_png=b64,
+                remote_url=None if b64 else url,
+                folder=CLOUDINARY_FOLDER,
+                prompt_ctx=prompt,
+                album=album or "index",
+            )
+        except Exception as e:
+            print("❌ Cloudinary upload error:", repr(e))
+            traceback.print_exc()
+            return _err(f"Upload to Cloudinary failed: {e}", 502, str(e))
 
-        return jsonify({"ok": True, "description": desc, "prompt": pr})
+        return jsonify({
+            "ok": True,
+            "prompt": prompt,
+            "image": b64,
+            "file_path": up.get("secure_url"),
+            "cloudinary": {
+                "url": up.get("secure_url"),
+                "public_id": up.get("public_id"),
+                "bytes": up.get("bytes"),
+                "format": up.get("format"),
+                "width": up.get("width"),
+                "height": up.get("height"),
+                "created_at": up.get("created_at"),
+            }
+        })
 
     except Exception as e:
-        return _err("Error during motif analysis", 500, str(e))
+        print("❌ Unhandled error in /generate:", repr(e))
+        traceback.print_exc()
+        return _err("Failed to generate image (server error). See server logs for details.", 500, str(e))
+
 
 
 # ── Sketch → CAD-style image (OpenAI-only flow) ─────────────────────────────
