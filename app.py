@@ -425,6 +425,9 @@ def __ls_static():
             size = os.path.getsize(os.path.join(root, f))
             out.append({"path": path, "size": size})
     return jsonify(out)
+@app.route("/design-variants")
+def design_variants_alias():
+    return render_template("design_variant_generator.html")
 
 
 # ── Generate (text → image) + upload to Cloudinary ──────────────────────────
