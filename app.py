@@ -416,6 +416,17 @@ def motif():
 def about():
     return render_template("about.html")
 
+@app.get("/__ls_static")
+def __ls_static():
+    out = []
+    for root, _, files in os.walk(os.path.join(app.root_path, "static")):
+        for f in files:
+            path = os.path.relpath(os.path.join(root, f), app.root_path)
+            size = os.path.getsize(os.path.join(root, f))
+            out.append({"path": path, "size": size})
+    return jsonify(out)
+
+
 # ── Generate (text → image) + upload to Cloudinary ──────────────────────────
 @app.post("/generate")
 def generate():
