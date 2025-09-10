@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: jewelgen
+    env: python
+    plan: free        # or starter if free is not available
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "gunicorn app:app"
+    envVars:
+      - key: FLASK_DEBUG
+        value: "0"
