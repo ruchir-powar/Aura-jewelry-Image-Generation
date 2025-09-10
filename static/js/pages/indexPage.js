@@ -111,16 +111,23 @@ function generatePrompt() {
     if (size)  p += `, size ${size.toLowerCase()}`;
   }
 
+  // --- Inject lightweight production rules ---
+  p += `. Maintain a diamond-to-gold ratio close to 0.8 `
+     + `(example: ~0.25–0.35 cts diamonds with ~2.5–3 gms gold). `
+     + `Use delicate frameworks, halo or lattice-style motifs, clustered melee diamonds, `
+     + `avoid heavy solitaires unless specified. Ergonomic, wearable daily jewellery.`
+
   // Tanmaniya special rules
   if ((type || "").toLowerCase() === "tanmaniyas") {
-    p += `. Chain partially visible in a clean, symmetrical V-shape (only the front portion shown), ` +
-         `made of alternating black enamel beads and polished gold beads (2–3 mm), evenly spaced; ` +
-         `no mesh, snake, tube, link, or tennis-style chain; no gemstones in the chain. ` +
-         `Proper front elevation (no angle, no 3/4 tilt, no perspective), pendant perfectly centered`;
+    p += ` Chain partially visible in a clean, symmetrical V-shape (only the front portion shown), `
+       + `made of alternating black enamel beads and polished gold beads (2–3 mm), evenly spaced; `
+       + `no mesh, snake, tube, link, or tennis-style chain; no gemstones in the chain. `
+       + `Proper front elevation (no angle, no 3/4 tilt, no perspective), pendant perfectly centered.`;
   }
 
-  p += `. Hyper-realistic render, front view on a pure white background under studio lighting, ` +
-       `accurate metal/stone reflections; absolutely no text, numbers, watermarks, grids, labels, or markings.`;
+  // Render style
+  p += ` Hyper-realistic CAD-style render, front view, polished finish, `
+     + `pure white background under studio lighting, no props, text, or watermarks.`;
 
   p = p.charAt(0).toUpperCase() + p.slice(1);
 
@@ -129,6 +136,7 @@ function generatePrompt() {
   byId("finalPrompt") && (byId("finalPrompt").value = p);
   return p;
 }
+
 
 function buildPromptVariants(base, n, locksText = "") {
   const out = [];
