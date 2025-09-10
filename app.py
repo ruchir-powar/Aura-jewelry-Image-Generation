@@ -661,9 +661,7 @@ def generate_from_sketch():
         import traceback; traceback.print_exc()
         return _err("Failed to generate from sketch", 500, str(e))
 
-@app.post("/generate-sketch")
-def generate_sketch():
-    return generate_from_sketch()
+
 
 # --- Design Variant Generator ---
 @app.route("/design-variant-generator")
@@ -675,10 +673,6 @@ def design_variant_generator():
 def set_generator():
     return render_template("setgenerator.html")
 
-# --- Motif → Vector ---
-@app.route("/motifvector")
-def motif_vector():
-    return render_template("motiftovector.html")
 
 # --- Text Automation ---
 @app.route("/textautomation")
@@ -1266,9 +1260,7 @@ def __routes__():
         methods = sorted(m for m in r.methods if m not in ("HEAD", "OPTIONS"))
         rules.append({"rule": str(r), "endpoint": r.endpoint, "methods": methods})
     return jsonify(rules)
-@app.route("/design-variants")
-def design_variants():
-    return render_template("design_variant_generator.html")
+
 
 @app.route("/motiftovector")
 def motiftovector():
