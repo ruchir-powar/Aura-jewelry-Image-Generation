@@ -27,12 +27,14 @@ function fmtWhen(s) {
     return s;
   }
 }
+
 function escapeHTML(str = "") {
   return String(str)
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;");
 }
+
 // for data-* attributes
 function escapeAttr(str = "") {
   return String(str)
@@ -88,15 +90,13 @@ function cardHTML(it, i) {
         <span class="when" style="font-size:11px;color:#6b7280;">${fmtWhen(when)}</span>
       </div>
     </article>`;
-  // NOTE: removed the hidden <textarea>/<span> to avoid accidental display.
 }
 
 function renderGallery() {
   const grid = byId("galleryItems");
   if (!grid) return;
 
-  // force exactly 3 columns on wider screens (kept from your original)
-  grid.style.gridTemplateColumns = "repeat(3, 1fr)";
+  grid.style.gridTemplateColumns = "repeat(3, 1fr)"; // fixed 3 cols
 
   grid.innerHTML = "";
   const filtered = state.album !== "all"
@@ -112,7 +112,6 @@ function renderGallery() {
 
 function renderAlbums() {
   const ul = byId("albumList");
-  const search = byId("albumSearch");
   if (!ul) return;
 
   const entries = groupByAlbum(state.items);
@@ -134,11 +133,6 @@ function renderAlbums() {
     renderAlbums();
     renderGallery();
   };
-
-  search?.addEventListener("input", () => {
-    state.search = search.value.trim();
-    renderAlbums();
-  });
 
   byId("showAll")?.addEventListener("click", () => {
     state.album = "all";
@@ -186,7 +180,6 @@ function setupCardClicks() {
 
   function openModal(el) {
     const img = el.querySelector("img");
-    // READ from data-* attributes (no hidden textareas)
     const prompt = el.dataset.prompt || "";
     const when = el.dataset.when || "";
     const album = el.dataset.album || "unknown";
@@ -197,6 +190,7 @@ function setupCardClicks() {
 
     modal.setAttribute("aria-hidden", "false");
     document.body.style.overflow = "hidden";
+    mClose?.focus(); // accessibility improvement
   }
 
   function closeModal() {
@@ -250,6 +244,8 @@ function setupInfiniteScroll() {
     if (entries.some(e => e.isIntersecting)) loadMore();
   }, { rootMargin: "800px 0px 800px 0px" });
   io.observe(sentinel);
+
+  window.addEventListener("beforeunload", () => io.disconnect());
 }
 
 // ---- Boot -----------------------------------------------------------------
@@ -257,14 +253,17 @@ export function initGallery() {
   if ((document.body.dataset.page || "") !== "gallery") return;
 
   // initial load
-  loadMore(); // first page
+  loadMore();
   setupCardClicks();
   setupInfiniteScroll();
 
-  // keep 3 columns (your original behavior)
+  // search input listener (attached once here)
+  const search = byId("albumSearch");
+  search?.addEventListener("input", () => {
+    state.search = search.value.trim();
+    renderAlbums();
+  });
+
   const grid = byId("galleryItems");
   if (grid) grid.style.gridTemplateColumns = "repeat(3, 1fr)";
 }
-
-// Immediate init when bundled without main.js orchestrator
-try { initGallery(); } catch {}
