@@ -3,62 +3,72 @@
 
 {% block styles %}
 <style>
-  .vx-wrap { max-width: 1100px; margin: 28px auto 40px; padding: 0 16px; }
+  /* layout */
+  .vx-wrap { max-width:1100px; margin:28px auto 40px; padding:0 16px; }
   .vx-head { display:flex; align-items:center; gap:12px; margin-bottom:16px; }
-  .vx-title { font-size: 28px; line-height:1.2; letter-spacing:.3px; color:#111; }
+  .vx-title { font-size:28px; line-height:1.2; letter-spacing:.3px; color:#111; }
   .vx-tag { display:inline-block; font-size:12px; padding:4px 10px; border-radius:999px;
             background:#fff5cc; color:#6b5300; border:1px solid #ffe28a; }
-
   .vx-grid { display:grid; grid-template-columns: 1fr 1fr; gap:18px; }
-  @media (max-width: 900px) { .vx-grid { grid-template-columns: 1fr; } }
+  @media (max-width:900px){ .vx-grid{ grid-template-columns:1fr; } }
 
+  /* cards */
   .vx-card { background:#fff; border:1px solid #e7e7e7; border-radius:16px; padding:16px 16px 14px;
              box-shadow:0 2px 10px rgba(0,0,0,.03); }
   .vx-card h3 { margin:0 0 10px; font-size:18px; color:#222; }
   .vx-subtle { color:#777; font-size:13px; }
 
-  /* Dropzone */
-  [data-dropzone]{
-    border:1.5px dashed #c9c9c9; border-radius:14px; padding:22px;
+  /* quick utils */
+  .hidden { display:none !important; }
+
+  /* dropzone */
+  #dropZone {
+    border:1.5px dashed #c9c9c9; border-radius:14px; padding:22px; min-height:220px;
     background:linear-gradient(180deg,#fafafa 0%, #f7f7f7 100%);
     color:#555; text-align:center; cursor:pointer;
-    transition: border-color .12s ease, background .12s ease, box-shadow .12s ease;
-    min-height: 220px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px;
+    transition:border-color .12s ease, background .12s ease, box-shadow .12s ease;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px;
   }
-  [data-dropzone].dragover{ border-color:#ffd54a; background:#fff8db; }
+  #dropZone.dragover { border-color:#ffd54a; background:#fff8db; box-shadow:0 0 0 4px #fff1b3 inset; }
   .vx-hint{ font-size:12px; color:#888; }
   .vx-meta{ font-size:13px; color:#666; }
 
-  .vx-preview{
-    display:flex; align-items:center; justify-content:center; background:#fbfbfb;
-    border:1px solid #eee; border-radius:12px; min-height:180px; overflow:hidden;
+  /* preview */
+  #previewBox { margin-top:12px; }
+  .vx-preview {
+    display:flex; align-items:center; justify-content:center;
+    background:#fbfbfb; border:1px solid #eee; border-radius:12px;
+    min-height:180px; overflow:hidden;
   }
-  .vx-preview img{ max-width:100%; max-height:340px; display:block; }
+  #previewImg { width:100%; height:340px; object-fit:contain; background:#fff; display:block; }
 
+  /* form */
   .form-row { display:grid; grid-template-columns: 1fr 1fr; gap:12px; }
-  @media (max-width: 600px) { .form-row { grid-template-columns: 1fr; } }
+  @media (max-width:600px){ .form-row{ grid-template-columns:1fr; } }
   .vx-card label { font-weight:600; display:block; margin:10px 0 6px; }
-  .vx-card input[type="text"],
-  .vx-card input[type="number"],
-  .vx-card select {
+  .vx-card input[type="text"], .vx-card input[type="number"], .vx-card select {
     width:100%; padding:10px 12px; border:1px solid #dcdcdc; border-radius:10px; background:#fff;
   }
 
-  .targets-grid { display:grid; grid-template-columns: 1fr 1fr; gap:6px 14px; }
-  .targets-grid label { font-weight:500; }
+  /* targets */
+  .targets-grid { display:grid; grid-template-columns:1fr 1fr; gap:6px 14px; }
+  .targets-grid label { font-weight:500; user-select:none; cursor:pointer; }
 
+  /* buttons */
   .vx-btnbar{ display:flex; gap:10px; flex-wrap:wrap; margin-top:14px; }
   .vx-btn{ padding:10px 14px; border-radius:12px; border:1px solid #d9d9d9; background:#fff; color:#222; cursor:pointer; }
   .vx-btn:hover { box-shadow:0 2px 8px rgba(0,0,0,.05); }
   .vx-btn.primary{ border-color:#ffd54a; background:#fffbe6; }
 
-  .results-grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(220px,1fr)); gap:14px; }
-  .results-grid img { width:100%; border-radius:12px; border:1px solid #eee; }
+  /* results */
+  .results-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(220px,1fr)); gap:14px; }
+  .results-grid figure { margin:0; }
+  .results-grid img { width:100%; border-radius:12px; border:1px solid #eee; background:#fff; }
+  .results-grid figcaption { font-size:12px; color:#666; margin-top:6px; }
 </style>
 {% endblock %}
 
 {% block content %}
-<!-- ⭐ set the page id so the JS initializes -->
 <script>document.body.dataset.page = "variants";</script>
 
 <div class="vx-wrap">
@@ -68,26 +78,34 @@
   </div>
 
   <div class="vx-grid">
-    <!-- Left: Upload -->
+    <!-- LEFT: upload -->
     <section class="vx-card" aria-labelledby="vx-upload">
       <h3 id="vx-upload">Base Image (optional)</h3>
       <p class="vx-subtle" style="margin-top:-4px;">Use a motif/style image to guide variants.</p>
 
       <form id="variantForm" enctype="multipart/form-data">
-        <input type="file" id="baseImage" name="base_image" accept="image/*" hidden>
-        <div data-dropzone id="uploadBox" tabindex="0" role="button" aria-label="Upload motif by clicking or dropping">
+        <!-- ⚠️ IDs aligned with JS -->
+        <input type="file" id="base_image" name="base_image" accept="image/*" class="hidden">
+        <div id="dropZone" tabindex="0" role="button" aria-label="Upload motif by clicking or dropping">
           <div><strong>Drop image here</strong> or click to select</div>
           <div class="vx-hint">PNG • JPG • WebP • SVG</div>
           <div class="vx-meta" id="file-meta">No file selected</div>
         </div>
 
-        <div class="vx-preview" id="imagePreview" aria-live="polite" aria-atomic="true" style="margin-top:12px;">
-          <span class="vx-subtle">Selected image preview will appear here</span>
+        <!-- preview -->
+        <div id="previewBox" class="hidden">
+          <div class="flex items-center justify-between" style="display:flex;align-items:center;justify-content:space-between;margin:10px 4px 6px;">
+            <div class="vx-subtle">Selected image preview</div>
+            <button id="clearPreviewBtn" type="button" class="vx-btn" style="padding:6px 10px;">Remove</button>
+          </div>
+          <div class="vx-preview">
+            <img id="previewImg" alt="Preview">
+          </div>
         </div>
       </form>
     </section>
 
-    <!-- Right: Options -->
+    <!-- RIGHT: options -->
     <section class="vx-card" aria-labelledby="vx-options">
       <h3 id="vx-options">Options</h3>
 
@@ -100,6 +118,8 @@
             <option value="pendant">Pendant</option>
             <option value="necklace">Necklace</option>
             <option value="bangle">Bangle</option>
+            <option value="bracelet">Bracelet</option>
+            <option value="tanmaniya">Tanmaniya</option>
           </select>
         </div>
         <div>
@@ -141,7 +161,7 @@
       </div>
 
       <label for="weightTarget">Weight Target (grams)</label>
-      <input type="number" id="weightTarget" name="weight_target" min="0" step="0.1">
+      <input type="number" id="weightTarget" name="weight_target" min="0" step="0.1" inputmode="decimal">
 
       <div class="vx-btnbar">
         <button id="generateVariants" type="button" class="vx-btn primary">Generate Variants</button>
@@ -149,7 +169,7 @@
     </section>
   </div>
 
-  <!-- Results -->
+  <!-- results -->
   <section class="vx-card" style="margin-top:18px;" aria-labelledby="vx-results">
     <h3 id="vx-results">Results</h3>
     <div class="results-grid" id="resultsGrid"></div>
@@ -158,5 +178,6 @@
 {% endblock %}
 
 {% block scripts %}
+  <!-- your page JS (expects the IDs above) -->
   <script type="module" src="{{ url_for('static_files', filename='js/pages/variantPage.js') }}"></script>
 {% endblock %}
