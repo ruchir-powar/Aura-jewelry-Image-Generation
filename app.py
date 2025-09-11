@@ -425,9 +425,6 @@ def __ls_static():
             size = os.path.getsize(os.path.join(root, f))
             out.append({"path": path, "size": size})
     return jsonify(out)
-@app.route("/design-variants")
-def design_variants_alias():
-    return render_template("design_variant_generator.html")
 
 
 # ── Generate (text → image) + upload to Cloudinary ──────────────────────────
@@ -676,12 +673,6 @@ def generate_from_sketch():
         return _err("Failed to generate from sketch", 500, str(e))
 
 
-
-# --- Design Variant Generator ---
-@app.route("/design-variant-generator")
-def design_variant_generator():
-    return render_template("design_variant_generator.html")
-
 # --- Set Generator ---
 @app.route("/setgenerator")
 def set_generator():
@@ -795,51 +786,112 @@ def list_images():
 # --- Variants ---
 # --- Design Variants API ---
 # --- Design Variants API ---
+@app.get("/design-variants")
+@app.get("/design-variant-generator")  # optional alias
+def design_variants_page():
+    return render_template("design_variant_generator.html")
+
+@app.get("/__cloudinary_ping")
+def __cloudinary_ping():
+    try:
+        r = cloudinary.uploader.upload("https://res.cloudinary.com/demo/image/upload/sample.jpg", folder=CLOUDINARY_FOLDER)
+        return {"ok": True, "url": r.get("secure_url")}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}, 500
+
+# --- Design Variants API (multipart) ---
+from werkzeug.datastructures import FileStorage
+import traceback
+
 @app.route("/api/design-variants", methods=["POST"])
 def api_design_variants():
     try:
-        base_type = request.form.get("base_type", "")
-        base_motif = request.form.get("base_motif", "")
-        metal = request.form.get("metal", "")
-        stone = request.form.get("stone", "")
-        weight_target = request.form.get("weight_target", "")
-        targets = json.loads(request.form.get("targets", "[]"))
+        # -------- read form --------
+        base_type     = (request.form.get("base_type") or "").strip()
+        base_motif    = (request.form.get("base_motif") or "").strip()
+        metal         = (request.form.get("metal") or "").strip()
+        stone         = (request.form.get("stone") or "").strip()
+        weight_target = (request.form.get("weight_target") or "").strip()
 
-        img_url = None
+        # targets can arrive as JSON string or a single value
+        targets_raw = request.form.get("targets", "[]")
+        try:
+            targets = json.loads(targets_raw)
+            if not isinstance(targets, list):
+                targets = [str(targets)]
+        except Exception:
+            targets = [targets_raw] if targets_raw else []
+        targets = [str(t).strip() for t in targets if str(t).strip()]
 
-        # 1️⃣ If file uploaded → upload to Cloudinary
-        if "base_image" in request.files:
-            file = request.files["base_image"]
-            if file.filename:
-                try:
-                    upload_result = cloudinary.uploader.upload(file, folder="design_variants")
-                    img_url = upload_result["secure_url"]
-                except Exception as ce:
-                    print("⚠️ Cloudinary upload failed, saving locally:", ce)
-                    # fallback local save
-                    save_dir = os.path.join("static", "generated")
-                    os.makedirs(save_dir, exist_ok=True)
-                    path = os.path.join(save_dir, file.filename)
-                    file.save(path)
-                    img_url = "/" + path.replace("\\", "/")
+        # -------- upload (optional) base image to Cloudinary --------
+        ref_image_url = None
+        f: FileStorage | None = request.files.get("base_image")
+        if f and f.filename:
+            try:
+                up = _cloudinary_upload_fileobj(
+                    f,
+                    folder=f"{CLOUDINARY_FOLDER}/design_variants",
+                    context={"album": "variants", "prompt": "variant reference image"},
+                    tags=["reference"]
+                )
+                ref_image_url = up.get("secure_url")
+            except Exception as ce:
+                # fallback to local save, but keep going
+                print("⚠️ Cloudinary upload failed; saving locally:", ce)
+                save_dir = os.path.join("static", "generated")
+                os.makedirs(save_dir, exist_ok=True)
+                local_path = os.path.join(save_dir, f.filename)
+                f.stream.seek(0)
+                f.save(local_path)
+                ref_image_url = "/" + os.path.relpath(local_path, start=app.root_path).replace("\\", "/")
+        # placeholder if nothing uploaded
+        if not ref_image_url:
+            ref_image_url = "/static/placeholder.png"
 
-        # 2️⃣ If no image uploaded, use placeholder
-        if not img_url:
-            img_url = "/static/placeholder.png"
+        # -------- generate a prompt per target and upload results --------
+        variants: list[dict] = []
+        if not targets:
+            return jsonify({"ok": True, "variants": []})
 
-        # 3️⃣ Generate dummy variants (replace later with AI)
-        variants = []
         for t in targets:
-            variants.append({
-                "label": f"{t.capitalize()} variant ({metal}, {stone})",
-                "url": img_url
-            })
+            prompt = (
+                f"Jewelry design variant: {t} derived from base type {base_type}. "
+                f"Motif/style: {base_motif or 'clean minimal'}. Metal: {metal or '18k Yellow'}, "
+                f"Stone: {stone or 'Diamond'}. Target weight: {weight_target or 'lightweight'} grams. "
+                f"Inspired by (do not copy exactly): {ref_image_url}. "
+                f"{LIGHT_RULES}"
+            )
 
-        return jsonify({"variants": variants})
+            try:
+                b64, url = _images_generate_with_retries(prompt, model_pref="dall-e-3", tries=3, timeout=120)
+                if not (b64 or url):
+                    # If upstream failed, still return a tile with the reference/placeholder
+                    variants.append({"label": f"{t.capitalize()} variant ({metal}, {stone})", "url": ref_image_url})
+                    continue
+
+                # upload the generated image (b64 preferred; url as fallback)
+                up = _upload_to_cloudinary(
+                    b64_png=b64,
+                    remote_url=None if b64 else url,
+                    folder=CLOUDINARY_FOLDER,
+                    prompt_ctx=prompt,
+                    album="variants",
+                )
+                variants.append({
+                    "label": f"{t.capitalize()} variant ({metal}, {stone})",
+                    "url": up.get("secure_url") or url or ref_image_url,
+                })
+
+            except Exception as ge:
+                print("⚠️ Variant generation/upload failed:", ge)
+                variants.append({"label": f"{t.capitalize()} variant ({metal}, {stone})", "url": ref_image_url})
+
+        return jsonify({"ok": True, "variants": variants})
 
     except Exception as e:
-        print("❌ Error in /api/design-variants:", e)
-        return jsonify({"error": str(e)}), 500
+        traceback.print_exc()
+        return jsonify({"ok": False, "error": f"{type(e).__name__}: {e}"}), 500
+
 # --- Set ---
 @app.route("/api/set-simple", methods=["POST"])
 def api_set_simple():
