@@ -1,106 +1,151 @@
+// static/js/pages/variantPage.js
 import { byId } from "../core/utils.js";
 
-(function init() {
-  // Initialize if we're on the variants page OR if the upload UI exists.
+(function initVariants() {
+  // only run on Variants page (or if the drop zone exists)
   const pageOk = (document.body.dataset.page || "") === "variants";
-  if (!pageOk && !byId("uploadBox")) return;
+  if (!pageOk && !byId("dropZone")) return;
 
-  const uploadBox   = byId("uploadBox");
-  const fileInput   = byId("baseImage");
-  const fileMeta    = byId("file-meta");
-  const previewBox  = byId("imagePreview");
-  const resultsGrid = byId("resultsGrid");
-  const generateBtn = byId("generateVariants");
+  // elements
+  const dropZone        = byId("dropZone");
+  const fileInput       = byId("base_image");
+  const fileMeta        = byId("file-meta");
+  const previewBox      = byId("previewBox");
+  const previewImg      = byId("previewImg");
+  const clearPreviewBtn = byId("clearPreviewBtn");
+  const resultsGrid     = byId("resultsGrid");
+  const generateBtn     = byId("generateVariants");
 
+  // form controls
+  const baseType      = byId("baseType");
+  const baseMotif     = byId("baseMotif");
+  const metalSel      = byId("metal");
+  const stoneSel      = byId("stone");
+  const weightTarget  = byId("weightTarget");
+
+  // helpers
   function setPreviewEmpty() {
-    previewBox.innerHTML = `<span class="vx-subtle">Selected image preview will appear here</span>`;
+    if (previewImg) previewImg.src = "";
+    if (previewBox) previewBox.classList.add("hidden");
     if (fileMeta) fileMeta.textContent = "No file selected";
   }
 
   function showPreview(file) {
-    if (!file || !file.type.startsWith("image/")) { setPreviewEmpty(); return; }
-    const reader = new FileReader();
-    reader.onload = e => {
-      const img = new Image();
-      img.onload = () => {
-        previewBox.innerHTML = "";
-        previewBox.appendChild(img);
-        if (fileMeta) fileMeta.textContent = `${file.name} — ${img.naturalWidth}×${img.naturalHeight}`;
-      };
-      img.alt = "Uploaded preview";
-      img.src = e.target.result;
+    if (!file || !file.type?.startsWith?.("image/")) {
+      setPreviewEmpty();
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    previewImg.onload = () => {
+      if (fileMeta) {
+        fileMeta.textContent = `${file.name} — ${previewImg.naturalWidth}×${previewImg.naturalHeight}`;
+      }
+      URL.revokeObjectURL(url);
     };
-    reader.readAsDataURL(file);
+    previewImg.alt = "Selected motif preview";
+    previewImg.src = url;
+    previewBox.classList.remove("hidden");
   }
 
-  // Click to open file dialog
-  uploadBox.addEventListener("click", () => fileInput.click());
-  uploadBox.addEventListener("keydown", (e) => {
-    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fileInput.click(); }
+  // events — open file picker
+  dropZone.addEventListener("click", () => fileInput.click());
+  dropZone.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      fileInput.click();
+    }
   });
 
-  // Native input change
+  // input change
   fileInput.addEventListener("change", () => {
-    const f = fileInput.files && fileInput.files[0];
+    const f = fileInput.files?.[0];
     showPreview(f);
   });
 
-  // Drag & drop
-  ["dragenter","dragover"].forEach(evt =>
-    uploadBox.addEventListener(evt, e => { e.preventDefault(); uploadBox.classList.add("dragover"); })
+  // drag & drop
+  ["dragenter", "dragover"].forEach(evt =>
+    dropZone.addEventListener(evt, (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      dropZone.classList.add("dragover");
+    })
   );
-  ["dragleave","dragexit","drop"].forEach(evt =>
-    uploadBox.addEventListener(evt, e => { e.preventDefault(); uploadBox.classList.remove("dragover"); })
+  ["dragleave", "dragexit", "drop"].forEach(evt =>
+    dropZone.addEventListener(evt, (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      dropZone.classList.remove("dragover");
+    })
   );
-  uploadBox.addEventListener("drop", e => {
+  dropZone.addEventListener("drop", (e) => {
     const files = e.dataTransfer?.files;
     if (files && files.length) {
-      fileInput.files = files;           // keep input in sync
+      fileInput.files = files; // keep input in sync for FormData
       showPreview(files[0]);
     }
   });
 
-  // Generate Variants
-  async function generateVariants() {
-    const formData = new FormData();
-    if (fileInput.files[0]) formData.append("base_image", fileInput.files[0]);
-    formData.append("base_type", byId("baseType").value);
-    formData.append("base_motif", byId("baseMotif").value);
-    formData.append("metal", byId("metal").value);
-    formData.append("stone", byId("stone").value);
-    formData.append("weight_target", byId("weightTarget").value);
+  // clear preview
+  clearPreviewBtn.addEventListener("click", () => {
+    fileInput.value = "";
+    setPreviewEmpty();
+    dropZone.focus();
+  });
+
+  // render results
+  function renderResults(list = []) {
+    if (!list.length) {
+      resultsGrid.innerHTML = `<p class="vx-subtle">No variants returned.</p>`;
+      return;
+    }
+    resultsGrid.innerHTML = list.map((v) => `
+      <figure>
+        <img src="${v.url}" alt="${v.label}">
+        <figcaption>${v.label}</figcaption>
+      </figure>
+    `).join("");
+  }
+
+  // request builder
+  function buildFormData() {
+    const fd = new FormData();
+    const file = fileInput.files?.[0];
+    if (file) fd.append("base_image", file);
+
+    fd.append("base_type", baseType.value);
+    fd.append("base_motif", baseMotif.value.trim());
+    fd.append("metal", metalSel.value);
+    fd.append("stone", stoneSel.value);
+    fd.append("weight_target", weightTarget.value);
 
     const targets = Array.from(document.querySelectorAll("input[name='targets']:checked"))
       .map(cb => cb.value);
-    formData.append("targets", JSON.stringify(targets));
+    fd.append("targets", JSON.stringify(targets));
+    return fd;
+  }
 
+  async function generateVariants() {
+    const formData = buildFormData();
+    const oldTxt = generateBtn.textContent;
     try {
       generateBtn.disabled = true;
-      const oldTxt = generateBtn.textContent;
       generateBtn.textContent = "Generating…";
 
-      const res = await fetch("/api/design-variants", { method:"POST", body: formData });
-      if (!res.ok) throw new Error("Failed to generate variants");
+      const res = await fetch("/api/design-variants", { method: "POST", body: formData });
+      if (!res.ok) throw new Error(`Server error (${res.status})`);
       const data = await res.json();
 
-      resultsGrid.innerHTML = (data.variants || []).map(v =>
-        `<div>
-           <img src="${v.url}" alt="${v.label}">
-           <p class="vx-subtle" style="margin:6px 0 0;">${v.label}</p>
-         </div>`
-      ).join("") || `<p class="vx-subtle">No variants returned.</p>`;
-
+      renderResults(data?.variants || []);
+    } catch (err) {
+      resultsGrid.innerHTML = `<p style="color:#c0392b;">${err?.message || "Failed to generate variants."}</p>`;
+    } finally {
       generateBtn.textContent = oldTxt;
       generateBtn.disabled = false;
-    } catch (err) {
-      resultsGrid.innerHTML = `<p style="color:#c0392b;">${err.message || "Error"}</p>`;
-      generateBtn.disabled = false;
-      generateBtn.textContent = "Generate Variants";
     }
   }
 
   generateBtn.addEventListener("click", generateVariants);
 
-  // initial state
+  // init state
   setPreviewEmpty();
 })();
